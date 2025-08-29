@@ -70,8 +70,8 @@ export async function createUser(
   try {
     console.log("🎯 Serviço: Iniciando criação de usuário", userData.email)
 
-    // Verificar se o email já existe
-    const { data: existingUser, error: checkError } = await supabase
+    // Verificar se o email já existe usando admin client
+    const { data: existingUser, error: checkError } = await supabaseAdmin
       .from("users")
       .select("email")
       .eq("email", userData.email.toLowerCase())
@@ -225,7 +225,8 @@ export async function validateUserCredentials(email: string, password: string): 
   try {
     console.log("🔍 Validando credenciais para:", email)
 
-    const { data: user, error } = await supabase
+    // Use admin client to bypass RLS for authentication
+    const { data: user, error } = await supabaseAdmin
       .from("users")
       .select(`
         *,
@@ -307,7 +308,7 @@ export async function validateUserCredentials(email: string, password: string): 
 
 export async function getUserByEmailService(email: string): Promise<UserResponse | null> {
   try {
-    const { data: user, error } = await supabase
+    const { data: user, error } = await supabaseAdmin
       .from("users")
       .select(`
         *,

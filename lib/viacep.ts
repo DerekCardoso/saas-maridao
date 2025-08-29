@@ -9,6 +9,7 @@ export interface Address {
   gia?: string
   ddd?: string
   siafi?: string
+  erro?: boolean
 }
 
 export async function fetchAddressByCep(cep: string): Promise<Address | null> {
@@ -21,22 +22,25 @@ export async function fetchAddressByCep(cep: string): Promise<Address | null> {
       throw new Error("CEP deve ter 8 dígitos")
     }
 
+    console.log("🔍 Buscando CEP:", cleanCep)
+
     const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
 
     if (!response.ok) {
-      throw new Error("Erro ao buscar CEP")
+      throw new Error(`Erro na requisição: ${response.status}`)
     }
 
-    const data = await response.json()
+    const data: Address = await response.json()
 
     if (data.erro) {
       throw new Error("CEP não encontrado")
     }
 
+    console.log("✅ CEP encontrado:", data)
     return data
   } catch (error) {
-    console.error("Erro ao buscar CEP:", error)
-    return null
+    console.error("❌ Erro ao buscar CEP:", error)
+    throw error
   }
 }
 
