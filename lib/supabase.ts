@@ -79,6 +79,15 @@ export function getSupabaseAdmin() {
   })
 }
 
+// Legacy compatibility - create a default client for backward compatibility
+export const supabase = typeof window === "undefined" ? createSupabaseServerClient() : createSupabaseBrowserClient()
+
+// Also export as default for compatibility
+export default supabase
+
+// Admin client export for server-side use
+export const supabaseAdmin = getSupabaseAdmin
+
 // Types (kept for compatibility with the rest of the codebase)
 export type Database = {
   public: {

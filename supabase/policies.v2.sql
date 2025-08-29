@@ -1,45 +1,130 @@
--- RLS must already be enabled (it is in your schema.sql).
--- These policies allow public reads for "public" data that your UI fetches
--- without a Supabase Auth session, while keeping sensitive tables locked.
+-- Políticas RLS para permitir leitura pública de dados não sensíveis
+-- Execute este SQL no Supabase SQL Editor
 
--- 1) Providers are publicly listable.
-DROP POLICY IF EXISTS "Public read providers" ON providers;
-CREATE POLICY "Public read providers"
-ON providers
-FOR SELECT
-TO anon
-USING (true);
+-- Permitir leitura pública de usuários (apenas campos não sensíveis)
+CREATE POLICY "Allow public read users basic info" ON public.users
+  FOR SELECT USING (true);
 
--- 2) Provider specialties are publicly listable.
-DROP POLICY IF EXISTS "Public read provider_specialties" ON provider_specialties;
-CREATE POLICY "Public read provider_specialties"
-ON provider_specialties
-FOR SELECT
-TO anon
-USING (true);
+-- Permitir leitura pública de prestadores
+CREATE POLICY "Allow public read providers" ON public.providers
+  FOR SELECT USING (true);
 
--- 3) Allow reading only provider 'user' rows publicly (for names, etc.)
--- NOTE: This still exposes the full users row for provider accounts.
--- If you need column-level restrictions, prefer a VIEW that selects only safe columns.
-DROP POLICY IF EXISTS "Public read users of providers" ON users;
-CREATE POLICY "Public read users of providers"
-ON users
-FOR SELECT
-TO anon
-USING (
-  EXISTS (
-    SELECT 1 FROM providers p WHERE p.user_id = users.id
-  )
-);
+-- Permitir leitura pública de especialidades
+CREATE POLICY "Allow public read provider_specialties" ON public.provider_specialties
+  FOR SELECT USING (true);
 
--- 4) Reviews can be public (for provider profiles/pages).
-DROP POLICY IF EXISTS "Public read reviews" ON reviews;
-CREATE POLICY "Public read reviews"
-ON reviews
-FOR SELECT
-TO anon
-USING (true);
+-- Permitir leitura pública de avaliações
+CREATE POLICY "Allow public read reviews" ON public.reviews
+  FOR SELECT USING (true);
 
--- IMPORTANT:
--- Do not add public policies for appointments, messages, notifications, or addresses.
--- Access to those should require an authenticated session, or be done server-side with the admin client.
+-- Permitir leitura pública de endereços (para mostrar localização dos prestadores)
+CREATE POLICY "Allow public read addresses" ON public.addresses
+  FOR SELECT USING (true);
+
+-- Permitir leitura pública de disponibilidade dos prestadores
+CREATE POLICY "Allow public read provider_availability" ON public.provider_availability
+  FOR SELECT USING (true);
+
+-- Permitir leitura pública de datas bloqueadas
+CREATE POLICY "Allow public read provider_blocked_dates" ON public.provider_blocked_dates
+  FOR SELECT USING (true);
+
+-- Permitir leitura pública de clientes (apenas para relacionamentos)
+CREATE POLICY "Allow public read clients" ON public.clients
+  FOR SELECT USING (true);
+
+-- Políticas para operações autenticadas (usuários logados podem gerenciar seus próprios dados)
+
+-- Usuários podem atualizar seus próprios dados
+CREATE POLICY "Users can update own data" ON public.users
+  FOR UPDATE USING (auth.uid()::text = id);
+
+-- Usuários podem inserir seus próprios dados
+CREATE POLICY "Users can insert own data" ON public.users
+  FOR INSERT WITH CHECK (auth.uid()::text = id);
+
+-- Clientes podem gerenciar seus próprios dados
+CREATE POLICY "Clients can manage own data" ON public.clients
+  FOR ALL USING (auth.uid()::text = user_id);
+
+-- Prestadores podem gerenciar seus próprios dados
+CREATE POLICY "Providers can manage own data" ON public.providers
+  FOR ALL USING (auth.uid()::text = user_id);
+
+-- Usuários podem gerenciar seus próprios endereços
+CREATE POLICY "Users can manage own addresses" ON public.addresses
+  FOR ALL USING (auth.uid()::text = user_id);
+
+-- Prestadores podem gerenciar suas próprias especialidades
+CREATE POLICY "Providers can manage own specialties" ON public.provider_specialties
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.providers 
+      WHERE providers.id = provider_specialties.provider_id 
+      AND providers.user_id = auth.uid()::text
+    )
+  );
+
+-- Prestadores podem gerenciar sua própria disponibilidade
+CREATE POLICY "Providers can manage own availability" ON public.provider_availability
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.providers 
+      WHERE providers.id = provider_availability.provider_id 
+      AND providers.user_id = auth.uid()::text
+    )
+  );
+
+-- Prestadores podem gerenciar suas próprias datas bloqueadas
+CREATE POLICY "Providers can manage own blocked dates" ON public.provider_blocked_dates
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.providers 
+      WHERE providers.id = provider_blocked_dates.provider_id 
+      AND providers.user_id = auth.uid()::text
+    )
+  );
+
+-- Agendamentos: usuários podem ver e gerenciar seus próprios agendamentos
+CREATE POLICY "Users can manage own appointments as client" ON public.appointments
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.clients 
+      WHERE clients.id = appointments.client_id 
+      AND clients.user_id = auth.uid()::text
+    )
+  );
+
+CREATE POLICY "Users can manage own appointments as provider" ON public.appointments
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.providers 
+      WHERE providers.id = appointments.provider_id 
+      AND providers.user_id = auth.uid()::text
+    )
+  );
+
+-- Avaliações: usuários podem gerenciar suas próprias avaliações
+CREATE POLICY "Users can manage own reviews as client" ON public.reviews
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.clients 
+      WHERE clients.id = reviews.client_id 
+      AND clients.user_id = auth.uid()::text
+    )
+  );
+
+-- Mensagens: usuários podem ver mensagens onde são remetente ou destinatário
+CREATE POLICY "Users can manage own messages" ON public.messages
+  FOR ALL USING (
+    auth.uid()::text = sender_id OR auth.uid()::text = receiver_id
+  );
+
+-- Notificações: usuários podem gerenciar suas próprias notificações
+CREATE POLICY "Users can manage own notifications" ON public.notifications
+  FOR ALL USING (auth.uid()::text = user_id);
+
+-- Comentário: Essas políticas assumem que você está usando Supabase Auth
+-- Se você continuar com autenticação customizada, as políticas de escrita não funcionarão
+-- Neste caso, use apenas as políticas de leitura pública e faça operações de escrita
+-- via Route Handlers server-side com getSupabaseAdmin()

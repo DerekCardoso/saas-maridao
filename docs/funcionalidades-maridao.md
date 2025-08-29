@@ -1,335 +1,373 @@
-# Maridão — Guia Completo de Funcionalidades e Fluxos
+# Funcionalidades da Plataforma Maridão
 
-Este documento descreve, de forma prática e detalhada, tudo o que a plataforma Maridão oferece hoje: perfis, jornadas, páginas, componentes, integrações, regras de negócio e como as peças se conectam para entregar valor a clientes e prestadores.
+## Visão Geral
 
-Última atualização: 2025-08-09
+A **Plataforma Maridão** é um marketplace digital que conecta clientes a prestadores de serviços domésticos e residenciais. A plataforma oferece uma experiência completa de agendamento, comunicação, pagamento e avaliação de serviços.
 
-## Sumário
-- Visão geral
-- Perfis de usuário e permissões
-- Jornadas por perfil
-  - Cliente
-  - Prestador
-  - Admin
-- Funcionalidades por área
-  - Autenticação e onboarding
-  - Busca e descoberta (CEP, filtros e comparação)
-  - Perfil do prestador
-  - Agendamentos (cliente e prestador)
-  - Mensagens e WhatsApp
-  - Avaliações
-  - Notificações e toasts
-  - Plano Premium
-- Páginas e rotas principais
-- Componentes principais
-- Integrações e serviços
-- Dados e regras de negócio (alto nível)
-- Acessibilidade, UX, responsividade e performance
-- Segurança e privacidade
-- Roadmap próximo
+## Arquitetura Técnica
+
+- **Frontend**: Next.js 14 com App Router
+- **Backend**: Supabase (PostgreSQL + Auth + Storage)
+- **UI**: shadcn/ui + Tailwind CSS
+- **Autenticação**: Sistema customizado com cookies + Supabase Auth (em migração)
+- **Pagamentos**: Integração planejada com Stripe/PagSeguro
+- **Deploy**: Vercel
+
+## Perfis de Usuário
+
+### 1. Cliente
+Pessoa física que busca contratar serviços domésticos.
+
+### 2. Prestador de Serviços
+Profissional que oferece serviços domésticos na plataforma.
+
+### 3. Administrador
+Usuário com acesso total para gerenciar a plataforma.
 
 ---
 
-## Visão geral
+## Funcionalidades por Perfil
 
-O Maridão é uma plataforma para contratar serviços domésticos de forma rápida e direta, conectando clientes a prestadores (maridos de aluguel) sem intermediação de pagamento. O cliente encontra profissionais por CEP e especialidade, verifica o perfil/avaliações e agenda diretamente. O prestador gerencia disponibilidade, atendimentos, relacionamento e pode destacar seu perfil com o Plano Premium.
+## 🏠 **CLIENTE**
 
-Pilares:
-- Descoberta eficiente (CEP, distância simulada, filtros e ordenação).
-- Fluxo de contratação simples (seleção de serviço, data/horário, detalhes).
-- Relacionamento direto (chat interno e botão WhatsApp).
-- Reputação (avaliações pós-serviço).
-- Gestão (dashboards por perfil, histórico e configurações).
-- Diferenciação (Plano Premium: destaque, badge e prioridade em listagens).
+### Cadastro e Autenticação
+- ✅ Registro com dados pessoais (nome, email, telefone, senha)
+- ✅ Validação de CEP com preenchimento automático de endereço (ViaCEP)
+- ✅ Login com email/senha
+- ✅ Sistema de cookies para manter sessão
+- 🔄 Recuperação de senha (planejado)
 
----
+### Busca e Contratação
+- ✅ Busca de prestadores por categoria de serviço
+- ✅ Filtros por localização, avaliação e preço
+- ✅ Visualização de perfis detalhados dos prestadores
+- ✅ Sistema de agendamento com data/hora
+- ✅ Especificação de detalhes do serviço
+- ✅ Confirmação de endereço para atendimento
 
-## Perfis de usuário e permissões
+### Comunicação
+- ✅ Chat interno com prestadores
+- ✅ Histórico de conversas
+- ✅ Notificações de novas mensagens
+- 🔄 Integração WhatsApp (planejado)
 
-- Visitante (não autenticado)
-  - Pode buscar prestadores por CEP, filtrar e abrir páginas públicas de prestadores.
-  - Pode iniciar fluxo de agendamento/mensagem, mas precisa logar/cadastrar para concluir.
+### Gestão de Serviços
+- ✅ Dashboard com visão geral dos agendamentos
+- ✅ Acompanhamento de status dos serviços
+- ✅ Histórico completo de serviços contratados
+- ✅ Cancelamento de agendamentos
+- ✅ Reagendamento de serviços
 
-- Cliente
-  - Painel com métricas, próximos/agendamentos passados, favoritos, mensagens, avaliações e configurações.
-  - Pode agendar serviços e avaliar prestadores após conclusão.
+### Avaliações e Feedback
+- ✅ Sistema de avaliação por estrelas (1-5)
+- ✅ Comentários sobre o serviço prestado
+- ✅ Visualização de avaliações anteriores
+- ✅ Histórico de avaliações feitas
 
-- Prestador
-  - Painel com métricas de atendimento e faturamento (indicadores), próximos serviços, histórico e clientes recentes.
-  - Gerencia disponibilidade, perfil, avaliações, e configurações (inclui Premium).
-
-- Admin
-  - Painel com KPIs globais (usuários, agendamentos, receita, premium).
-  - Acesso a relatórios, gestão de usuários, agendamentos e parâmetros do sistema.
-
----
-
-## Jornadas por perfil
-
-### Jornada do Cliente
-1. Acessa a home e pesquisa pelo CEP (com validação via ViaCEP).
-2. Na página de busca, filtra por serviço, avaliação mínima, distância e Premium; ordena por relevância/nota/distância.
-3. Abre o perfil do prestador, verifica especialidades, disponibilidade, preço indicado e avaliações.
-4. Agenda serviço informando serviço, data, horário e detalhes. Se não estiver logado, abre diálogo de login/cadastro.
-5. Após a execução, envia avaliação (nota e comentário).
-6. Acompanha no dashboard: métricas, próximos, histórico, mensagens e configurações.
-
-### Jornada do Prestador
-1. Cadastra-se como prestador (dados pessoais, endereço por CEP, bio, anos de experiência, especialidades).
-2. (Opcional) Ativa Plano Premium para destaque e prioridade na busca.
-3. Gerencia disponibilidade e responde solicitações (aceitar/rejeitar/reagendar).
-4. Acompanha no dashboard: próximos, histórico, clientes recentes, indicadores (serviços concluídos, faturamento estimado).
-5. Mantém perfil atualizado e interage via chat/WhatsApp.
-
-### Jornada do Admin
-1. Visualiza KPIs no dashboard (usuários, agendamentos, prestadores premium, receita).
-2. Consulta usuários recentes e agendamentos recentes.
-3. Acessa relatórios, banco de dados (telas administrativas) e configurações.
+### Perfil e Configurações
+- ✅ Edição de dados pessoais
+- ✅ Gerenciamento de endereços
+- ✅ Configurações de notificações
+- ✅ Histórico de atividades
 
 ---
 
-## Funcionalidades por área
+## 🔧 **PRESTADOR DE SERVIÇOS**
 
-### Autenticação e onboarding
-- Login: valida credenciais contra Supabase (tabela users, hash com bcrypt) e direciona para o dashboard do tipo de usuário.
-- Cadastro: formulário com validação, busca de endereço por CEP, campos de prestador (bio, experiência, especialidades, Premium).
-- Proteção de rotas: dashboards e áreas sensíveis exigem autenticação (middleware e verificação em layouts).
-- Feedback: toasts de sucesso/erro e mensagens inline nos formulários.
+### Cadastro e Perfil
+- ✅ Registro com dados profissionais
+- ✅ Definição de especialidades/categorias
+- ✅ Upload de fotos do perfil
+- ✅ Descrição profissional (bio)
+- ✅ Definição de anos de experiência
+- ✅ Configuração de área de atendimento
 
-Arquivos-chave:
-- app/login/page.tsx, components/auth/login-form.tsx
-- app/register/page.tsx, components/auth/register-form.tsx
-- lib/services/user-service.ts (createUser, validateUserCredentials)
-- lib/viacep.ts (fetchAddressByCep)
+### Gestão de Disponibilidade
+- ✅ Calendário de disponibilidade
+- ✅ Definição de horários de trabalho
+- ✅ Bloqueio de datas específicas
+- ✅ Configuração de dias da semana disponíveis
 
-### Busca e descoberta (CEP, filtros e comparação)
-- Busca por CEP: salva CEP e traz prestadores próximos (distância simulada para demo).
-- Filtros: especialidades, avaliação mínima, premium, raio de distância.
-- Ordenação: relevância (premium primeiro, depois nota), nota e distância.
-- Contagem e estado vazio com reset de filtros.
-- (Comparação) Planejado: página de comparação de 2–3 prestadores.
+### Gestão de Agendamentos
+- ✅ Recebimento de solicitações de serviço
+- ✅ Aceitar/rejeitar agendamentos
+- ✅ Reagendamento de serviços
+- ✅ Iniciar execução do serviço
+- ✅ Finalizar serviços
+- ✅ Dashboard com estatísticas
 
-Arquivos-chave:
-- app/search/page.tsx (filtros, tabs de ordenação, listagem)
-- components/cep-search.tsx, lib/cep-service.ts
-
-### Perfil do prestador
-- Página pública com:
-  - Nome, badge Premium, rating/contagem, especialidades, localização e tempo médio de resposta.
-  - Serviços listados com preço/duração e CTA “Agendar” integrando com formulário.
-  - Avaliações recentes e disponibilidade semanal.
-  - Ações: Chat (com gate de login) e WhatsApp.
-
-Arquivos-chave:
-- app/provider/[id]/page.tsx
-- components/provider-review-card.tsx
-- components/schedule-service-form.tsx
-- components/chat/chat-button.tsx
-- components/whatsapp-button.tsx
-
-### Agendamentos
-Cliente:
-- Solicita agendamento selecionando serviço, data, horário e detalhes.
-- Feedback via toast e redirecionamento para /dashboard/client/appointments.
-
-Prestador:
-- Visualiza próximos e históricos; aceita, rejeita, reagenda e inicia serviços.
-- Métricas no dashboard (ativos, concluídos, clientes atendidos, faturamento estimado).
-
-Arquivos-chave:
-- components/schedule-service-form.tsx (formulário de agendamento com gate de login)
-- app/dashboard/client/appointments/*.tsx, components/dashboard/client-appointment-card.tsx
-- app/dashboard/provider/appointments/*.tsx, components/dashboard/provider-appointment-card.tsx
-- lib/services/appointment-service.ts
-
-### Mensagens e WhatsApp
-- Chat interno:
-  - Botão “Chat” nas listagens/perfil que exige login e redireciona para mensagens com o prestador.
-  - Diálogo de autenticação com abas Login/Cadastro.
-- WhatsApp:
-  - CTA que abre conversa com o prestador no WhatsApp (deep link), facilitando negociação direta.
-
-Arquivos-chave:
-- components/chat/chat-button.tsx
-- components/whatsapp-button.tsx
-- app/dashboard/client/messages/*, components/dashboard/provider-messages-list.tsx
-
-### Avaliações
-- Pós-serviço: cliente avalia prestador (1–5 estrelas) e comentário opcional.
-- Feedback com toasts; integra contagem e média no perfil e listagens.
-
-Arquivos-chave:
-- components/review/review-form.tsx
-- componentes de exibição em provider page e dashboards
-
-### Notificações e toasts
-- Notificações:
-  - Sino com contagem de não lidas, popover com lista, ações de marcar como lida/todas lidas e excluir.
-  - Hook de tempo real planejado para persistência (integração Supabase Realtime).
-- Toasts:
-  - Padrões de sucesso/erro/aviso usados em login, cadastro, busca, agendamento e reviews.
-
-Arquivos-chave:
-- components/notifications/notification-bell.tsx
-- components/notifications/notification-list.tsx, notification-item.tsx
-- hooks/use-real-time-notifications.tsx
-- components/ui/use-toast (shadcn/ui)
+### Comunicação
+- ✅ Chat com clientes
+- ✅ Notificações de novos agendamentos
+- ✅ Histórico de conversas
+- 🔄 Notificações push (planejado)
 
 ### Plano Premium
-- Prestador pode ativar Premium no cadastro (UI).
-- Efeitos na plataforma:
-  - Badge de destaque (escudo) no avatar/perfil.
-  - Prioridade na ordenação por relevância na busca.
-  - Destaque visual nas listagens.
+- ✅ Upgrade para conta premium
+- ✅ Destaque nos resultados de busca
+- ✅ Acesso a funcionalidades exclusivas
+- 🔄 Sistema de pagamento do plano (em desenvolvimento)
 
-Arquivos-chave:
-- components/auth/register-form.tsx (seção Premium)
-- app/search/page.tsx (ordenador favorece Premium)
-- app/provider/[id]/page.tsx (badge, destaques)
-
----
-
-## Páginas e rotas principais
-
-Públicas
-- / — Home com CTA, busca por CEP, serviços e seção “Como funciona”.
-- /search — Busca e resultados com filtros e ordenação.
-- /provider/[id] — Perfil público do prestador com agenda e avaliações.
-- /login — Autenticação.
-- /register — Cadastro (abas Cliente/Prestador).
-- /plano-premium — Informações do plano (página institucional).
-- /prompt — Prompt de marketing (auxiliar).
-- /launch-readiness — Painel interno de readiness (auxiliar).
-
-Cliente (autenticado)
-- /client — Dashboard com métricas, próximos, histórico, favoritos.
-- /dashboard/client/appointments — Lista de agendamentos.
-- /dashboard/client/appointments/[id]/details — Detalhes do agendamento.
-- /dashboard/client/appointments/[id]/review — Avaliar serviço.
-- /dashboard/client/messages — Mensagens.
-- /dashboard/client/profile — Perfil e configurações.
-
-Prestador (autenticado)
-- /provider — Dashboard com métricas, próximos, histórico e clientes recentes.
-- /dashboard/provider/availability — Gerenciar disponibilidade.
-- /dashboard/provider/appointments — Agendamentos.
-- /dashboard/provider/messages — Mensagens.
-- /dashboard/provider/settings — Configurações (inclui Premium).
-- /dashboard/provider/reviews — Avaliações.
-
-Admin (autenticado)
-- /admin — Dashboard com KPIs e cards recentes.
-- /dashboard/admin/users — Gestão de usuários.
-- /dashboard/admin/appointments — Gestão de agendamentos.
-- /dashboard/admin/reports — Relatórios.
-- /dashboard/admin/settings — Configurações.
-- /dashboard/admin/database — Visão administrativa do banco.
+### Avaliações e Reputação
+- ✅ Visualização de avaliações recebidas
+- ✅ Cálculo automático de rating médio
+- ✅ Histórico de feedback dos clientes
+- ✅ Estatísticas de desempenho
 
 ---
 
-## Componentes principais (UI e domínio)
+## ⚙️ **ADMINISTRADOR**
 
-- Header/Footer: navegação, CTA, sino de notificações, alternância de contexto.
-- CepSearch: entrada de CEP com validação e integração ViaCEP.
-- ServiceCard: vitrine de serviços (hover, sem navegação).
-- Provider cards: listagem com badge Premium, nota e distância.
-- Provider details: tabs (sobre, serviços, avaliações, disponibilidade).
-- ScheduleServiceForm: agendamento com data/horário/serviço e gate de login.
-- ChatButton: exige login e redireciona para a conversa com o prestador.
-- WhatsAppButton: deep link para conversa direta.
-- ReviewForm: avaliação com estrelas e comentário.
-- NotificationBell e NotificationList: tempo real planejado + persistência.
-- Sidebars e dashboards por perfil com métricas contextuais.
+### Gestão de Usuários
+- ✅ Listagem de todos os usuários
+- ✅ Visualização de perfis detalhados
+- ✅ Estatísticas de usuários por tipo
+- ✅ Filtros e busca avançada
+- 🔄 Suspensão/ativação de contas (planejado)
 
----
+### Gestão de Agendamentos
+- ✅ Visão geral de todos os agendamentos
+- ✅ Filtros por status, data, prestador
+- ✅ Estatísticas de agendamentos
+- ✅ Resolução de conflitos
+- 🔄 Cancelamento administrativo (planejado)
 
-## Integrações e serviços
+### Relatórios e Analytics
+- ✅ Dashboard com métricas principais
+- ✅ Gráficos de crescimento
+- ✅ Relatórios de receita
+- ✅ Análise de performance por categoria
+- ✅ Exportação de dados
 
-- Supabase (Banco de dados e autenticação de usuários)
-  - CRUD de usuários, prestadores, endereços, especialidades, agendamentos e avaliações.
-  - Validação de credenciais (bcrypt).
-  - Políticas RLS planejadas para público (listagens) e dono (dados sensíveis).
-- ViaCEP (Endereços)
-  - Busca de endereço por CEP no cadastro e formulários.
-- shadcn/ui e Tailwind CSS
-  - Base visual consistente, acessível e responsiva.
-- Lucide React
-  - Ícones leves e semânticos.
-- Framer Motion
-  - Animações leves e acessíveis (introduzidas em pontos-chave).
-- WhatsApp Deep Link
-  - Integração direta para conversa entre cliente e prestador.
+### Configurações do Sistema
+- ✅ Configurações gerais da plataforma
+- ✅ Gerenciamento de categorias de serviço
+- ✅ Configuração de taxas e comissões
+- 🔄 Configuração de emails automáticos (planejado)
 
----
-
-## Dados e regras de negócio (alto nível)
-
-Entidades principais (simplificado):
-- Users: id, name, email, phone, is_admin, password(hash)
-- Addresses: user_id, cep, street, number, complement, neighborhood, city, state
-- Providers: user_id, is_premium, bio, experience_years, rating (média), specialties (n:n)
-- Appointments: client_id, provider_id, date, service, details, status (pending/confirmed/completed/cancelled)
-- Reviews: appointment_id, provider_id, client_id, rating, comment, created_at
-- Notifications: user_id, title, body, read_at
-- Messages (planejado/implementação parcial de UI): from_user_id, to_user_id, body, read_at, created_at
-
-Regras:
-- Ordenação de busca por relevância: premium primeiro, depois por nota.
-- Avaliação disponível apenas após conclusão do serviço.
-- Notificações e mensagens devem respeitar RLS por dono (apenas remetente/destinatário).
-- Dados públicos de prestador em listagens devem evitar PII sensível; endereço agregado (cidade/UF) é suficiente.
+### Gestão de Conteúdo
+- 🔄 Moderação de avaliações (planejado)
+- 🔄 Gestão de denúncias (planejado)
+- 🔄 Aprovação de prestadores (planejado)
 
 ---
 
-## Acessibilidade, UX, responsividade e performance
+## 🌐 **FUNCIONALIDADES GERAIS**
 
-- Acessibilidade:
-  - Labels, aria-attributes, foco visível e contraste em componentes críticos.
-  - Feedback textual/visual (toasts) e avisos de validação.
-- UX:
-  - Gate de login em ações sensíveis (chat, agendar).
-  - Estados de vazio, loading, erro e success padronizados.
-- Responsividade:
-  - Layouts mobile-first, grids e stacks adaptativos do xs ao lg+.
-- Performance:
-  - Listas paginadas/filtradas no cliente (demo) e arquitetura para mover filtros para o servidor.
-  - Imagens/ícones otimizados, CSS utilitário e componentes leves.
+### Páginas Públicas
+- ✅ Landing page com apresentação da plataforma
+- ✅ Página "Como Funciona"
+- ✅ Listagem pública de prestadores
+- ✅ Perfis públicos dos prestadores
+- ✅ Busca por CEP/localização
+- ✅ Página de planos premium
+
+### Sistema de Notificações
+- ✅ Notificações em tempo real
+- ✅ Histórico de notificações
+- ✅ Marcação como lida/não lida
+- ✅ Diferentes tipos (agendamento, mensagem, avaliação, sistema)
+- 🔄 Notificações por email (planejado)
+- 🔄 Notificações push (planejado)
+
+### Integração CEP
+- ✅ Busca automática de endereço por CEP
+- ✅ Validação de CEP brasileiro
+- ✅ Preenchimento automático de campos
+- ✅ Integração com API ViaCEP
+
+### Sistema de Toasts
+- ✅ Notificações visuais de sucesso/erro
+- ✅ Animações suaves
+- ✅ Diferentes temas (sucesso, erro, aviso, info)
+- ✅ Posicionamento configurável
+- ✅ Auto-dismiss configurável
+
+### Responsividade
+- ✅ Design responsivo para mobile
+- ✅ Navegação adaptativa
+- ✅ Componentes otimizados para touch
+- 🔄 PWA (Progressive Web App) - planejado
 
 ---
 
-## Segurança e privacidade
+## 📊 **DADOS E ESTRUTURAS**
 
-- Nunca expor chaves sensíveis no cliente; uso de variáveis NEXT_PUBLIC_* somente para anon key/URL.
-- RLS (Row Level Security):
-  - Público: leitura limitada (prestadores/especialidades) sem PII.
-  - Privado: agendamentos, mensagens, notificações com acesso por dono.
-- Operações privilegiadas via server (Route Handlers/Server Actions) quando necessário.
-- Hash de senha com bcrypt e validação rigorosa no registro.
+### Entidades Principais
+- **Users**: Dados básicos de todos os usuários
+- **Clients**: Dados específicos de clientes
+- **Providers**: Dados específicos de prestadores
+- **Appointments**: Agendamentos de serviços
+- **Reviews**: Avaliações e comentários
+- **Messages**: Sistema de chat interno
+- **Notifications**: Notificações do sistema
+- **Addresses**: Endereços dos usuários
+- **Provider_Specialties**: Especialidades dos prestadores
+- **Provider_Availability**: Disponibilidade dos prestadores
+- **Provider_Blocked_Dates**: Datas bloqueadas
+
+### Relacionamentos
+- Usuário → Cliente/Prestador (1:1)
+- Prestador → Especialidades (1:N)
+- Prestador → Disponibilidade (1:N)
+- Cliente ↔ Prestador → Agendamentos (N:N)
+- Agendamento → Avaliação (1:1)
+- Usuário → Endereços (1:N)
+- Usuário → Notificações (1:N)
+- Usuário ↔ Usuário → Mensagens (N:N)
 
 ---
 
-## Roadmap próximo (alto impacto)
+## 🔐 **SEGURANÇA E AUTENTICAÇÃO**
 
-- Autenticação Supabase Auth por sessão (reduz acoplamento de cookies custom e simplifica RLS).
-- Realtime completo: mensagens e notificações persistentes com canais por usuário.
-- Pagamentos para Plano Premium: checkout, webhooks e gating no dashboard do prestador.
-- Comparação de prestadores e filtros/ordenadores no servidor com paginação real.
-- SEO (metadados/OG/sitemap/robots) e analytics (GA4/Pixel).
-- Observabilidade: Sentry, error boundaries e logs de negócio.
+### Autenticação Atual
+- ✅ Sistema customizado com cookies
+- ✅ Hash de senhas
+- ✅ Middleware de proteção de rotas
+- ✅ Validação de sessão
+- 🔄 Migração para Supabase Auth (em andamento)
+
+### Autorização
+- ✅ Controle de acesso por tipo de usuário
+- ✅ Proteção de rotas sensíveis
+- ✅ Validação de permissões no backend
+- 🔄 Row Level Security (RLS) - em implementação
+
+### Validações
+- ✅ Validação de formulários no frontend
+- ✅ Sanitização de dados
+- ✅ Validação de CEP
+- ✅ Validação de email
+- 🔄 Rate limiting (planejado)
 
 ---
 
-## Referências rápidas (arquivos/pastas)
+## 💳 **SISTEMA DE PAGAMENTOS** (Planejado)
 
-- Páginas públicas: app/page.tsx, app/search/page.tsx, app/provider/[id]/page.tsx
-- Auth e registro: components/auth/*, app/login/page.tsx, app/register/page.tsx
-- Dashboards:
-  - Cliente: app/dashboard/client/*, app/client/page.tsx
-  - Prestador: app/dashboard/provider/*, app/provider/page.tsx
-  - Admin: app/dashboard/admin/*, app/admin/page.tsx
-- Agendamentos/Reviews/Notificações:
-  - lib/services/*-service.ts
-  - components/review/*, components/notifications/*
-- Busca/CEP: components/cep-search.tsx, lib/viacep.ts, lib/cep-service.ts
-- UI base: components/ui/* (shadcn/ui), components/header.tsx, components/footer.tsx
-- Integração Supabase: lib/supabase.ts, lib/services/user-service.ts
+### Para Clientes
+- 🔄 Pagamento de serviços via cartão
+- 🔄 PIX
+- 🔄 Boleto bancário
+- 🔄 Carteira digital
+
+### Para Prestadores
+- 🔄 Pagamento do plano premium
+- 🔄 Recebimento de pagamentos
+- 🔄 Relatórios financeiros
+- 🔄 Saque automático
+
+### Administração
+- 🔄 Gestão de transações
+- 🔄 Relatórios financeiros
+- 🔄 Configuração de taxas
+- 🔄 Controle de comissões
+
+---
+
+## 📱 **INTEGRAÇÕES EXTERNAS**
+
+### APIs Integradas
+- ✅ **ViaCEP**: Busca de endereços por CEP
+- 🔄 **WhatsApp Business API**: Comunicação externa
+- 🔄 **Google Maps**: Localização e rotas
+- 🔄 **Stripe/PagSeguro**: Processamento de pagamentos
+
+### Serviços de Terceiros
+- ✅ **Supabase**: Backend as a Service
+- ✅ **Vercel**: Hospedagem e deploy
+- 🔄 **SendGrid**: Envio de emails
+- 🔄 **Firebase**: Notificações push
+- 🔄 **Sentry**: Monitoramento de erros
+
+---
+
+## 🚀 **FUNCIONALIDADES EM DESENVOLVIMENTO**
+
+### Curto Prazo
+- 🔄 Sistema de pagamentos completo
+- 🔄 Migração completa para Supabase Auth
+- 🔄 Notificações por email
+- 🔄 Recuperação de senha
+- 🔄 Políticas de privacidade e termos
+
+### Médio Prazo
+- 🔄 App mobile (React Native)
+- 🔄 Sistema de cupons e promoções
+- 🔄 Programa de fidelidade
+- 🔄 Chat com suporte ao cliente
+- 🔄 Sistema de denúncias
+
+### Longo Prazo
+- 🔄 IA para recomendação de prestadores
+- 🔄 Sistema de agendamento recorrente
+- 🔄 Marketplace de produtos
+- 🔄 Sistema de franquias
+- 🔄 Expansão internacional
+
+---
+
+## 📈 **MÉTRICAS E KPIs**
+
+### Métricas de Usuário
+- Número total de usuários cadastrados
+- Taxa de conversão de visitante para usuário
+- Tempo médio na plataforma
+- Taxa de retenção mensal
+
+### Métricas de Negócio
+- Número de agendamentos realizados
+- Valor médio por transação
+- Taxa de conclusão de serviços
+- Receita mensal recorrente (MRR)
+
+### Métricas de Qualidade
+- Rating médio dos prestadores
+- Taxa de cancelamento
+- Tempo médio de resposta no chat
+- NPS (Net Promoter Score)
+
+---
+
+## 🎯 **DIFERENCIAIS COMPETITIVOS**
+
+1. **Interface Intuitiva**: Design limpo e fácil navegação
+2. **Busca por CEP**: Encontre prestadores na sua região
+3. **Chat Integrado**: Comunicação direta sem sair da plataforma
+4. **Sistema de Avaliações**: Transparência e confiança
+5. **Plano Premium**: Destaque para prestadores profissionais
+6. **Notificações em Tempo Real**: Acompanhamento completo
+7. **Responsividade**: Funciona perfeitamente no mobile
+8. **Integração WhatsApp**: Comunicação familiar aos usuários
+
+---
+
+## 🔧 **TECNOLOGIAS UTILIZADAS**
+
+### Frontend
+- **Next.js 14**: Framework React com App Router
+- **TypeScript**: Tipagem estática
+- **Tailwind CSS**: Estilização utilitária
+- **shadcn/ui**: Componentes de UI
+- **Framer Motion**: Animações
+- **React Hook Form**: Gerenciamento de formulários
+
+### Backend
+- **Supabase**: Backend as a Service
+- **PostgreSQL**: Banco de dados relacional
+- **Row Level Security**: Segurança a nível de linha
+- **Supabase Auth**: Autenticação e autorização
+
+### DevOps e Deploy
+- **Vercel**: Hospedagem e CI/CD
+- **GitHub**: Controle de versão
+- **ESLint/Prettier**: Qualidade de código
+- **TypeScript**: Verificação de tipos
+
+### Monitoramento (Planejado)
+- **Sentry**: Monitoramento de erros
+- **Google Analytics**: Análise de uso
+- **Vercel Analytics**: Métricas de performance
+
+---
+
+Esta documentação representa o estado atual da plataforma Maridão, incluindo funcionalidades implementadas (✅) e planejadas (🔄). A plataforma está em constante evolução, com novas funcionalidades sendo adicionadas regularmente baseadas no feedback dos usuários e necessidades do mercado.
