@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -19,30 +19,96 @@ interface Notification {
 }
 
 interface NotificationListProps {
-  notifications: Array<{
-    id: string
-    type: string
-    title: string
-    content: string
-    isRead: boolean
-    linkUrl: string | null
-    createdAt: string
-  }>
-  onMarkAsRead: (id: string) => void
-  onMarkAllAsRead: () => void
-  onDelete: (id: string) => void
+  onNotificationRead?: () => void
 }
 
-export function NotificationList({ notifications, onMarkAsRead, onMarkAllAsRead, onDelete }: NotificationListProps) {
+export function NotificationList({ onNotificationRead }: NotificationListProps) {
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
   const router = useRouter()
 
-  // Remove os estados internos e useEffect, pois agora recebemos tudo via props
+  // Buscar notificações
+  const fetchNotifications = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/notifications")
+      if (response.ok) {
+        const data = await response.json()
+        setNotifications(data)
+      }
+    } catch (error) {
+      console.error("Erro ao buscar notificações:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Buscar notificações iniciais
+  useEffect(() => {
+    fetchNotifications()
+  }, [])
+
+  // Marcar notificação como lida
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: "PATCH",
+      })
+
+      if (response.ok) {
+        setNotifications((prev) =>
+          prev.map((notification) => (notification.id === id ? { ...notification, isRead: true } : notification)),
+        )
+        if (onNotificationRead) {
+          onNotificationRead()
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao marcar notificação como lida:", error)
+    }
+  }
+
+  // Excluir notificação
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        setNotifications((prev) => prev.filter((notification) => notification.id !== id))
+        if (onNotificationRead) {
+          onNotificationRead()
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao excluir notificação:", error)
+    }
+  }
+
+  // Marcar todas como lidas
+  const handleMarkAllAsRead = async () => {
+    try {
+      const response = await fetch("/api/notifications/read-all", {
+        method: "POST",
+      })
+
+      if (response.ok) {
+        setNotifications((prev) => prev.map((notification) => ({ ...notification, isRead: true })))
+        if (onNotificationRead) {
+          onNotificationRead()
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao marcar todas as notificações como lidas:", error)
+    }
+  }
 
   // Navegar para o link da notificação
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationClick = (notification: Notification) => {
     if (!notification.isRead) {
-      onMarkAsRead(notification.id)
+      handleMarkAsRead(notification.id)
     }
 
     if (notification.linkUrl) {
@@ -61,7 +127,7 @@ export function NotificationList({ notifications, onMarkAsRead, onMarkAllAsRead,
     <div className="flex flex-col h-full">
       <div className="p-4 border-b flex items-center justify-between">
         <h3 className="font-semibold">Notificações</h3>
-        <Button variant="ghost" size="sm" onClick={onMarkAllAsRead}>
+        <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead}>
           <Check className="h-4 w-4 mr-1" />
           Marcar todas como lidas
         </Button>
@@ -87,7 +153,11 @@ export function NotificationList({ notifications, onMarkAsRead, onMarkAllAsRead,
 
         <TabsContent value={activeTab} className="mt-0">
           <ScrollArea className="h-[300px]">
-            {notifications.length === 0 ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center h-[300px]">
+                <p className="text-sm text-muted-foreground">Carregando notificações...</p>
+              </div>
+            ) : filteredNotifications.length === 0 ? (
               <div className="flex items-center justify-center h-[300px]">
                 <p className="text-sm text-muted-foreground">Nenhuma notificação encontrada</p>
               </div>
@@ -98,8 +168,8 @@ export function NotificationList({ notifications, onMarkAsRead, onMarkAllAsRead,
                     key={notification.id}
                     notification={notification}
                     onClick={() => handleNotificationClick(notification)}
-                    onMarkAsRead={() => onMarkAsRead(notification.id)}
-                    onDelete={() => onDelete(notification.id)}
+                    onMarkAsRead={() => handleMarkAsRead(notification.id)}
+                    onDelete={() => handleDelete(notification.id)}
                   />
                 ))}
               </div>

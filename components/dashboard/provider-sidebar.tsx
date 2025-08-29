@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Calendar, Clock, CreditCard, Home, MessageSquare, Settings, Star, User } from "lucide-react"
+import { Calendar, Clock, CreditCard, Home, MessageSquare, Settings, Star } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -68,16 +68,6 @@ export function ProviderSidebar() {
           >
             <Star className="h-4 w-4" />
             Avaliações
-          </Link>
-          <Link
-            href="/dashboard/provider/profile"
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-              pathname === "/dashboard/provider/profile" && "bg-muted text-foreground",
-            )}
-          >
-            <User className="h-4 w-4" />
-            Perfil
           </Link>
           <Link
             href="/dashboard/provider/settings/premium"

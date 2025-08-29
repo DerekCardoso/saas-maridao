@@ -3,28 +3,25 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { Providers } from "./providers"
-import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Maridão - Plataforma de Serviços",
-  description: "Conectando você aos melhores prestadores de serviços",
-  generator: "v0.dev",
+  title: "Maridão - Encontre profissionais qualificados para seus serviços",
+  description:
+    "Plataforma que conecta clientes a prestadores de serviços qualificados para reparos e manutenção residencial.",
+    generator: 'v0.app'
 }
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode
-}) {
+}>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
-        <Providers>
-          {children}
-          <Toaster />
-        </Providers>
+    <html lang="pt-BR">
+      <body className={inter.className}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   )
