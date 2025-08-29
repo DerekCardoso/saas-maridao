@@ -1,76 +1,169 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Eye, EyeOff, Loader2 } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/components/ui/use-toast"
+import { validateUserCredentials } from "@/lib/services/user-service"
 
-interface LoginFormProps {
-  onSuccess?: () => void
-  redirectUrl?: string
-  hideLinks?: boolean
-}
-
-export function LoginForm({ onSuccess, redirectUrl, hideLinks = false }: LoginFormProps) {
+export function LoginForm() {
+  const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const { login, isLoading } = useAuth()
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
+  const router = useRouter()
+  const { toast } = useToast()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const validateForm = () => {
+    const newErrors: { email?: string; password?: string } = {}
+
+    if (!email) {
+      newErrors.email = "Email é obrigatório"
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Email inválido"
+    }
+
+    if (!password) {
+      newErrors.password = "Senha é obrigatória"
+    } else if (password.length < 6) {
+      newErrors.password = "Senha deve ter pelo menos 6 caracteres"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
 
+    if (!validateForm()) {
+      return
+    }
+
+    setIsLoading(true)
     try {
-      await login(email, password)
-      if (onSuccess) {
-        onSuccess()
+      const user = await validateUserCredentials(email, password)
+
+      if (user) {
+        // Salvar dados do usuário no localStorage
+        localStorage.setItem("maridao_user", JSON.stringify(user))
+
+        // Salvar cookies para o middleware
+        document.cookie = `token=authenticated; path=/; max-age=86400`
+        document.cookie = `userType=${user.userType}; path=/; max-age=86400`
+
+        toast({
+          title: "Login realizado com sucesso!",
+          description: `Bem-vindo(a) de volta, ${user.name}!`,
+        })
+
+        // Redirecionar baseado no tipo de usuário
+        switch (user.userType) {
+          case "admin":
+            router.push("/dashboard/admin")
+            break
+          case "provider":
+            router.push("/dashboard/provider")
+            break
+          case "client":
+            router.push("/dashboard/client")
+            break
+          default:
+            router.push("/")
+        }
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro no login",
+          description: "Email ou senha incorretos. Tente novamente.",
+        })
       }
     } catch (error) {
-      // Erro já tratado no hook de autenticação
+      console.error("Erro no login:", error)
+      toast({
+        variant: "destructive",
+        title: "Erro no login",
+        description: "Ocorreu um erro ao fazer login. Tente novamente.",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 py-2">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          placeholder="seu@email.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-      </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Login</CardTitle>
+        <CardDescription>Entre com suas credenciais para acessar sua conta.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="seuemail@exemplo.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={errors.email ? "border-red-500" : ""}
+            />
+            {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
+          </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">Senha</Label>
-          {!hideLinks && (
-            <Link href="/reset-password" className="text-xs text-primary hover:underline">
-              Esqueceu a senha?
-            </Link>
-          )}
-        </div>
-        <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={errors.password ? "border-red-500" : ""}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
+            </div>
+            {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
+          </div>
 
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? "Entrando..." : "Entrar"}
-      </Button>
-
-      {!hideLinks && (
-        <p className="text-center text-sm text-muted-foreground mt-4">
-          Não tem uma conta?{" "}
-          <Link href="/register?type=client" className="text-primary hover:underline">
-            Cadastre-se
-          </Link>
-        </p>
-      )}
-    </form>
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Entrando...
+              </>
+            ) : (
+              "Entrar"
+            )}
+          </Button>
+        </form>
+      </CardContent>
+      <CardFooter className="flex justify-between">
+        <Button variant="link" className="px-0" asChild>
+          <a href="/forgot-password">Esqueceu a senha?</a>
+        </Button>
+      </CardFooter>
+    </Card>
   )
 }
