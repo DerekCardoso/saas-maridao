@@ -20,11 +20,11 @@ interface AddressFormProps {
 export function AddressForm({ onAddressChange, initialAddress, showSubmitButton = false, onSubmit }: AddressFormProps) {
   const [address, setAddress] = useState<Partial<Address>>({
     cep: "",
-    street: "",
-    complement: "",
-    neighborhood: "",
-    city: "",
-    state: "",
+    logradouro: "",
+    complemento: "",
+    bairro: "",
+    localidade: "",
+    uf: "",
     ...initialAddress,
   })
 
@@ -86,7 +86,7 @@ export function AddressForm({ onAddressChange, initialAddress, showSubmitButton 
   }
 
   const isAddressComplete = (addr: Partial<Address>): boolean => {
-    return !!(addr.cep && addr.street && addr.neighborhood && addr.city && addr.state)
+    return !!(addr.cep && addr.logradouro && addr.bairro && addr.localidade && addr.uf)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -127,8 +127,8 @@ export function AddressForm({ onAddressChange, initialAddress, showSubmitButton 
         <Label htmlFor="street">Rua</Label>
         <Input
           id="street"
-          value={address.street || ""}
-          onChange={(e) => handleInputChange("street", e.target.value)}
+          value={address.logradouro || ""}
+          onChange={(e) => handleInputChange("logradouro", e.target.value)}
           disabled={isLoading && !isManualInput}
         />
       </div>
@@ -146,8 +146,8 @@ export function AddressForm({ onAddressChange, initialAddress, showSubmitButton 
           <Label htmlFor="complement">Complemento</Label>
           <Input
             id="complement"
-            value={address.complement || ""}
-            onChange={(e) => handleInputChange("complement", e.target.value)}
+            value={address.complemento || ""}
+            onChange={(e) => handleInputChange("complemento", e.target.value)}
             disabled={isLoading && !isManualInput}
             placeholder="Opcional"
           />
@@ -158,8 +158,8 @@ export function AddressForm({ onAddressChange, initialAddress, showSubmitButton 
         <Label htmlFor="neighborhood">Bairro</Label>
         <Input
           id="neighborhood"
-          value={address.neighborhood || ""}
-          onChange={(e) => handleInputChange("neighborhood", e.target.value)}
+          value={address.bairro || ""}
+          onChange={(e) => handleInputChange("bairro", e.target.value)}
           disabled={isLoading && !isManualInput}
         />
       </div>
@@ -169,8 +169,8 @@ export function AddressForm({ onAddressChange, initialAddress, showSubmitButton 
           <Label htmlFor="city">Cidade</Label>
           <Input
             id="city"
-            value={address.city || ""}
-            onChange={(e) => handleInputChange("city", e.target.value)}
+            value={address.localidade || ""}
+            onChange={(e) => handleInputChange("localidade", e.target.value)}
             disabled={isLoading && !isManualInput}
           />
         </div>
@@ -178,8 +178,8 @@ export function AddressForm({ onAddressChange, initialAddress, showSubmitButton 
           <Label htmlFor="state">Estado</Label>
           <Input
             id="state"
-            value={address.state || ""}
-            onChange={(e) => handleInputChange("state", e.target.value)}
+            value={address.uf || ""}
+            onChange={(e) => handleInputChange("uf", e.target.value)}
             disabled={isLoading && !isManualInput}
             maxLength={2}
           />

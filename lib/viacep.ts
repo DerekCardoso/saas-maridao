@@ -12,7 +12,7 @@ export interface Address {
   erro?: boolean
 }
 
-export async function getCepData(cep: string): Promise<Address | null> {
+export async function fetchAddressByCep(cep: string): Promise<Address | null> {
   try {
     // Remove any non-numeric characters from CEP
     const cleanCep = cep.replace(/\D/g, "")
@@ -20,6 +20,8 @@ export async function getCepData(cep: string): Promise<Address | null> {
     if (cleanCep.length !== 8) {
       throw new Error("CEP deve ter 8 dígitos")
     }
+
+    console.log("🔍 Buscando CEP:", cleanCep)
 
     const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
 
@@ -33,11 +35,16 @@ export async function getCepData(cep: string): Promise<Address | null> {
       throw new Error("CEP não encontrado")
     }
 
+    console.log("✅ CEP encontrado:", data)
     return data
   } catch (error) {
-    console.error("Erro ao buscar CEP:", error)
+    console.error("❌ Erro ao buscar CEP:", error)
     return null
   }
+}
+
+export async function getCepData(cep: string): Promise<Address | null> {
+  return fetchAddressByCep(cep)
 }
 
 export function validateCep(cep: string): boolean {

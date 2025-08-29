@@ -1,50 +1,38 @@
 import { NextResponse } from "next/server"
-import { testSupabaseConnection } from "@/lib/supabase"
+import { supabaseAdmin } from "@/lib/supabase"
 
 export async function GET() {
   try {
-    console.log("🏥 Health check iniciado...")
+    console.log("🏥 Verificando saúde do Supabase...")
 
-    // Test the connection
-    const connectionResult = await testSupabaseConnection()
+    // Test database connection
+    const { data, error } = await supabaseAdmin.from("users").select("count").limit(1)
 
-    if (!connectionResult.success) {
-      console.error("❌ Health check falhou:", connectionResult.error)
+    if (error) {
+      console.error("❌ Erro na conexão com Supabase:", error)
       return NextResponse.json(
         {
-          ok: false,
-          error: "Supabase connection failed",
-          details: connectionResult.error,
+          success: false,
+          error: error.message,
           timestamp: new Date().toISOString(),
-          env: {
-            supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? "configured" : "missing",
-            anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "configured" : "missing",
-            serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? "configured" : "missing",
-          },
         },
         { status: 500 },
       )
     }
 
-    console.log("✅ Health check passou!")
-
+    console.log("✅ Supabase está funcionando")
     return NextResponse.json({
-      ok: true,
+      success: true,
       message: "Supabase connection is healthy",
+      data,
       timestamp: new Date().toISOString(),
-      env: {
-        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? "configured" : "missing",
-        anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "configured" : "missing",
-        serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? "configured" : "missing",
-      },
     })
   } catch (error) {
-    console.error("💥 Health check exception:", error)
+    console.error("💥 Exceção no health check:", error)
     return NextResponse.json(
       {
-        ok: false,
-        error: "Health check failed with exception",
-        details: error instanceof Error ? error.message : "Unknown error",
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
         timestamp: new Date().toISOString(),
       },
       { status: 500 },
