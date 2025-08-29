@@ -44,24 +44,39 @@ export function getSupabaseAdmin() {
   return supabaseAdmin
 }
 
+// Check if Supabase is properly configured
+export function isSupabaseConfigured(): boolean {
+  return !!(supabaseUrl && supabaseAnonKey && supabaseServiceKey)
+}
+
+// Get configuration status
+export function getSupabaseConfigStatus() {
+  return {
+    url: !!supabaseUrl,
+    anonKey: !!supabaseAnonKey,
+    serviceKey: !!supabaseServiceKey,
+    isFullyConfigured: isSupabaseConfigured(),
+    missingVars: [
+      !supabaseUrl && "NEXT_PUBLIC_SUPABASE_URL",
+      !supabaseAnonKey && "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      !supabaseServiceKey && "SUPABASE_SERVICE_ROLE_KEY",
+    ].filter(Boolean),
+  }
+}
+
 // Test connection function with better error handling
 export async function testSupabaseConnection() {
   try {
     console.log("🔍 Testing Supabase connection...")
-    console.log("URL:", supabaseUrl || "MISSING")
-    console.log("Anon Key:", supabaseAnonKey ? "Present" : "MISSING")
-    console.log("Service Key:", supabaseServiceKey ? "Present" : "MISSING")
 
-    // Check environment variables first
-    const missingVars = []
-    if (!supabaseUrl) missingVars.push("NEXT_PUBLIC_SUPABASE_URL")
-    if (!supabaseAnonKey) missingVars.push("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-    if (!supabaseServiceKey) missingVars.push("SUPABASE_SERVICE_ROLE_KEY")
+    const configStatus = getSupabaseConfigStatus()
+    console.log("Config status:", configStatus)
 
-    if (missingVars.length > 0) {
+    if (!configStatus.isFullyConfigured) {
       return {
         success: false,
-        error: `Missing environment variables: ${missingVars.join(", ")}. Please configure them in your deployment settings.`,
+        error: `Missing environment variables: ${configStatus.missingVars.join(", ")}. Please configure them in your deployment settings.`,
+        configStatus,
       }
     }
 
@@ -69,6 +84,7 @@ export async function testSupabaseConnection() {
       return {
         success: false,
         error: "Supabase admin client not initialized despite having environment variables.",
+        configStatus,
       }
     }
 
@@ -76,16 +92,17 @@ export async function testSupabaseConnection() {
 
     if (error) {
       console.error("❌ Supabase connection failed:", error)
-      return { success: false, error: error.message }
+      return { success: false, error: error.message, configStatus }
     }
 
     console.log("✅ Supabase connection successful")
-    return { success: true, data }
+    return { success: true, data, configStatus }
   } catch (error) {
     console.error("💥 Supabase connection error:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
+      configStatus: getSupabaseConfigStatus(),
     }
   }
 }

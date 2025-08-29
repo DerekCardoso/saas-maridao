@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs"
+import { getSupabaseConfigStatus, isSupabaseConfigured } from "@/lib/supabase"
 
 interface SupabaseProvider {
   is_premium: boolean
@@ -68,19 +69,34 @@ export interface User {
 
 // Safe function to get supabase admin with error handling
 function getSupabaseAdminSafe() {
+  // Check configuration first
+  if (!isSupabaseConfigured()) {
+    const configStatus = getSupabaseConfigStatus()
+    throw new Error(`Database não configurado. Variáveis ausentes: ${configStatus.missingVars.join(", ")}`)
+  }
+
   try {
     // Dynamic import to avoid initialization errors
     const { getSupabaseAdmin } = require("@/lib/supabase")
     return getSupabaseAdmin()
   } catch (error) {
     console.error("❌ Error getting Supabase admin client:", error)
-    throw new Error("Database connection not available. Please check environment variables.")
+    throw new Error("Erro na conexão com o banco de dados. Verifique as configurações.")
   }
 }
 
 export async function createUser(userData: CreateUserData): Promise<{ success: boolean; user?: User; error?: string }> {
   try {
     console.log("🔄 Iniciando criação de usuário:", userData.email)
+
+    // Check if database is configured
+    if (!isSupabaseConfigured()) {
+      const configStatus = getSupabaseConfigStatus()
+      return {
+        success: false,
+        error: `Sistema não configurado. Configure as variáveis de ambiente: ${configStatus.missingVars.join(", ")}`,
+      }
+    }
 
     const supabase = getSupabaseAdminSafe()
 
@@ -219,6 +235,15 @@ export async function loginUser(loginData: LoginData): Promise<{ success: boolea
   try {
     console.log("🔄 Iniciando login:", loginData.email)
 
+    // Check if database is configured
+    if (!isSupabaseConfigured()) {
+      const configStatus = getSupabaseConfigStatus()
+      return {
+        success: false,
+        error: `Sistema não configurado. Configure as variáveis de ambiente: ${configStatus.missingVars.join(", ")}`,
+      }
+    }
+
     const supabase = getSupabaseAdminSafe()
 
     // Find user by email
@@ -269,6 +294,12 @@ export async function validateUserCredentials(email: string, password: string): 
   try {
     console.log("🔍 Validando credenciais para:", email)
 
+    // Check if database is configured
+    if (!isSupabaseConfigured()) {
+      console.log("❌ Database não configurado")
+      return null
+    }
+
     const supabase = getSupabaseAdminSafe()
 
     // Find user by email
@@ -311,6 +342,10 @@ export async function validateUserCredentials(email: string, password: string): 
 
 export async function getUserByEmailService(email: string): Promise<any | null> {
   try {
+    if (!isSupabaseConfigured()) {
+      return null
+    }
+
     const supabase = getSupabaseAdminSafe()
 
     const { data: user, error } = await supabase.from("users").select("*").eq("email", email.toLowerCase()).single()
@@ -335,6 +370,10 @@ export async function getUserByEmailService(email: string): Promise<any | null> 
 
 export async function getAllUsersService() {
   try {
+    if (!isSupabaseConfigured()) {
+      return []
+    }
+
     const supabase = getSupabaseAdminSafe()
 
     const { data: users, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
@@ -349,6 +388,10 @@ export async function getAllUsersService() {
 
 export async function getUserService(id: string) {
   try {
+    if (!isSupabaseConfigured()) {
+      return null
+    }
+
     const supabase = getSupabaseAdminSafe()
 
     const { data: user, error } = await supabase.from("users").select("*").eq("id", id).single()
@@ -363,6 +406,10 @@ export async function getUserService(id: string) {
 
 export async function updateUserService(id: string, userData: any) {
   try {
+    if (!isSupabaseConfigured()) {
+      return null
+    }
+
     const supabase = getSupabaseAdminSafe()
 
     const { data: user, error } = await supabase.from("users").update(userData).eq("id", id).select().single()
@@ -377,6 +424,10 @@ export async function updateUserService(id: string, userData: any) {
 
 export async function deleteUserService(id: string): Promise<boolean> {
   try {
+    if (!isSupabaseConfigured()) {
+      return false
+    }
+
     const supabase = getSupabaseAdminSafe()
 
     const { error } = await supabase.from("users").delete().eq("id", id)

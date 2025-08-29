@@ -13,6 +13,7 @@ export async function GET() {
           success: false,
           error: result.error,
           timestamp: new Date().toISOString(),
+          configStatus: result.configStatus,
           env: {
             supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? "configured" : "missing",
             anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "configured" : "missing",
@@ -27,6 +28,7 @@ export async function GET() {
       success: true,
       message: "Supabase connection is healthy",
       timestamp: new Date().toISOString(),
+      configStatus: result.configStatus,
       env: {
         supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? "configured" : "missing",
         anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "configured" : "missing",

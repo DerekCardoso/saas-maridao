@@ -1,28 +1,29 @@
 export interface Address {
   cep: string
   logradouro: string
-  complemento?: string
+  complemento: string
   bairro: string
   localidade: string
   uf: string
-  ibge?: string
-  gia?: string
-  ddd?: string
-  siafi?: string
+  ibge: string
+  gia: string
+  ddd: string
+  siafi: string
   erro?: boolean
 }
 
 export interface CepData {
   cep: string
   street: string
-  complement?: string
+  complement: string
   neighborhood: string
   city: string
   state: string
-  ibge?: string
-  gia?: string
-  ddd?: string
-  siafi?: string
+  ibge: string
+  gia: string
+  ddd: string
+  siafi: string
+  error?: boolean
 }
 
 export async function fetchAddressByCep(cep: string): Promise<Address | null> {
@@ -32,31 +33,24 @@ export async function fetchAddressByCep(cep: string): Promise<Address | null> {
 
     // Validate CEP format (8 digits)
     if (cleanCep.length !== 8) {
-      console.error("CEP deve ter 8 dígitos")
-      return null
+      throw new Error("CEP deve conter 8 dígitos")
     }
-
-    console.log(`🔍 Buscando CEP: ${cleanCep}`)
 
     const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
 
     if (!response.ok) {
-      console.error("Erro na requisição para ViaCEP:", response.status)
-      return null
+      throw new Error("Erro ao consultar CEP")
     }
 
     const data: Address = await response.json()
 
-    // Check if CEP was found
     if (data.erro) {
-      console.error("CEP não encontrado")
-      return null
+      throw new Error("CEP não encontrado")
     }
 
-    console.log("✅ CEP encontrado:", data)
     return data
   } catch (error) {
-    console.error("💥 Erro ao buscar CEP:", error)
+    console.error("Erro ao buscar CEP:", error)
     return null
   }
 }
@@ -69,6 +63,7 @@ export async function getCepData(cep: string): Promise<CepData | null> {
       return null
     }
 
+    // Convert ViaCEP format to our internal format
     return {
       cep: address.cep,
       street: address.logradouro,
@@ -80,19 +75,12 @@ export async function getCepData(cep: string): Promise<CepData | null> {
       gia: address.gia,
       ddd: address.ddd,
       siafi: address.siafi,
+      error: address.erro,
     }
   } catch (error) {
-    console.error("💥 Erro ao processar dados do CEP:", error)
+    console.error("Erro ao obter dados do CEP:", error)
     return null
   }
-}
-
-export function validateCep(cep: string): boolean {
-  // Remove any non-numeric characters
-  const cleanCep = cep.replace(/\D/g, "")
-
-  // Check if it has exactly 8 digits
-  return cleanCep.length === 8
 }
 
 export function formatCep(cep: string): string {
@@ -104,9 +92,13 @@ export function formatCep(cep: string): string {
     return `${cleanCep.slice(0, 5)}-${cleanCep.slice(5)}`
   }
 
-  return cep
+  return cleanCep
 }
 
-export function cleanCep(cep: string): string {
-  return cep.replace(/\D/g, "")
+export function validateCep(cep: string): boolean {
+  const cleanCep = cep.replace(/\D/g, "")
+  return cleanCep.length === 8
 }
+
+// Export all functions for compatibility
+export { fetchAddressByCep as default }
