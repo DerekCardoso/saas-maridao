@@ -3,54 +3,41 @@ import { supabase, supabaseAdmin } from "@/lib/supabase"
 
 export async function GET() {
   try {
-    // Test basic connection
-    const { data: basicTest, error: basicError } = await supabase.from("users").select("count").limit(1)
+    // Test regular client connection
+    const { data: publicData, error: publicError } = await supabase.from("users").select("count").limit(1)
 
-    if (basicError) {
-      console.error("❌ Basic connection failed:", basicError)
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Basic connection failed",
-          details: basicError.message,
-        },
-        { status: 500 },
-      )
-    }
+    // Test admin client connection
+    const { data: adminData, error: adminError } = await supabaseAdmin.from("users").select("count(*)").single()
 
-    // Test admin connection
-    const { data: adminTest, error: adminError } = await supabaseAdmin.from("users").select("count").limit(1)
-
-    if (adminError) {
-      console.error("❌ Admin connection failed:", adminError)
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Admin connection failed",
-          details: adminError.message,
-        },
-        { status: 500 },
-      )
-    }
-
-    // Get user count
-    const { count: userCount, error: countError } = await supabaseAdmin
-      .from("users")
-      .select("*", { count: "exact", head: true })
-
-    return NextResponse.json({
+    const response = {
       ok: true,
-      message: "Supabase connection is healthy",
-      userCount: userCount || 0,
       timestamp: new Date().toISOString(),
-    })
+      supabase: {
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL ? "configured" : "missing",
+        anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "configured" : "missing",
+        serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? "configured" : "missing",
+      },
+      tests: {
+        publicClient: {
+          success: !publicError,
+          error: publicError?.message || null,
+        },
+        adminClient: {
+          success: !adminError,
+          error: adminError?.message || null,
+          userCount: adminData?.count || 0,
+        },
+      },
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
-    console.error("💥 Health check failed:", error)
+    console.error("Health check error:", error)
     return NextResponse.json(
       {
         ok: false,
-        error: "Health check failed",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString(),
       },
       { status: 500 },
     )

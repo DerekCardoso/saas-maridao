@@ -14,13 +14,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Main Supabase client for general use
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-})
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Admin client for server-side operations (never use in browser)
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey!, {
@@ -32,6 +26,21 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey!, {
 
 // Export default for compatibility
 export default supabase
+
+// Browser client function
+export function createSupabaseBrowserClient() {
+  return createClient(supabaseUrl, supabaseAnonKey)
+}
+
+// Server client function (for when we migrate to Supabase Auth)
+export function createSupabaseServerClient() {
+  return createClient(supabaseUrl, supabaseAnonKey)
+}
+
+// Admin client function
+export function getSupabaseAdmin() {
+  return supabaseAdmin
+}
 
 // Database types
 export type Database = {

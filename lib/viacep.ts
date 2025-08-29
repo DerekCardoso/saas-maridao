@@ -9,6 +9,9 @@ export interface Address {
   gia?: string
   ddd?: string
   siafi?: string
+}
+
+export interface ViaCepResponse extends Address {
   erro?: boolean
 }
 
@@ -17,7 +20,7 @@ export async function fetchAddressByCep(cep: string): Promise<Address | null> {
     // Remove any non-numeric characters
     const cleanCep = cep.replace(/\D/g, "")
 
-    // Validate CEP format
+    // Validate CEP format (8 digits)
     if (cleanCep.length !== 8) {
       throw new Error("CEP deve ter 8 dígitos")
     }
@@ -30,23 +33,30 @@ export async function fetchAddressByCep(cep: string): Promise<Address | null> {
       throw new Error(`Erro na requisição: ${response.status}`)
     }
 
-    const data: Address = await response.json()
+    const data: ViaCepResponse = await response.json()
 
     if (data.erro) {
       throw new Error("CEP não encontrado")
     }
 
     console.log("✅ CEP encontrado:", data)
-    return data
+
+    return {
+      cep: data.cep,
+      logradouro: data.logradouro,
+      complemento: data.complemento,
+      bairro: data.bairro,
+      localidade: data.localidade,
+      uf: data.uf,
+      ibge: data.ibge,
+      gia: data.gia,
+      ddd: data.ddd,
+      siafi: data.siafi,
+    }
   } catch (error) {
     console.error("❌ Erro ao buscar CEP:", error)
     throw error
   }
-}
-
-export function validateCep(cep: string): boolean {
-  const cleanCep = cep.replace(/\D/g, "")
-  return cleanCep.length === 8
 }
 
 export function formatCep(cep: string): string {
@@ -54,5 +64,10 @@ export function formatCep(cep: string): string {
   if (cleanCep.length === 8) {
     return `${cleanCep.slice(0, 5)}-${cleanCep.slice(5)}`
   }
-  return cep
+  return cleanCep
+}
+
+export function validateCep(cep: string): boolean {
+  const cleanCep = cep.replace(/\D/g, "")
+  return cleanCep.length === 8 && /^\d{8}$/.test(cleanCep)
 }
