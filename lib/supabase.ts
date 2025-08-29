@@ -5,19 +5,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 
-// Validate required environment variables
-if (!supabaseUrl) {
-  console.error("❌ Missing NEXT_PUBLIC_SUPABASE_URL environment variable")
-}
-
-if (!supabaseAnonKey) {
-  console.error("❌ Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable")
-}
-
-if (!supabaseServiceKey) {
-  console.error("❌ Missing SUPABASE_SERVICE_ROLE_KEY environment variable")
-}
-
 // Create clients only if we have the required variables
 export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
 
@@ -34,22 +21,30 @@ export const supabaseAdmin =
 // Export default for compatibility
 export default supabase
 
-// Helper functions
+// Helper functions with better error handling
 export function getSupabaseClient() {
   if (!supabase) {
-    throw new Error("Supabase client not initialized. Check environment variables.")
+    const missingVars = []
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missingVars.push("NEXT_PUBLIC_SUPABASE_URL")
+    if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) missingVars.push("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+
+    throw new Error(`Supabase client not initialized. Missing environment variables: ${missingVars.join(", ")}`)
   }
   return supabase
 }
 
 export function getSupabaseAdmin() {
   if (!supabaseAdmin) {
-    throw new Error("Supabase admin client not initialized. Check environment variables.")
+    const missingVars = []
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missingVars.push("NEXT_PUBLIC_SUPABASE_URL")
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missingVars.push("SUPABASE_SERVICE_ROLE_KEY")
+
+    throw new Error(`Supabase admin client not initialized. Missing environment variables: ${missingVars.join(", ")}`)
   }
   return supabaseAdmin
 }
 
-// Test connection function
+// Test connection function with better error handling
 export async function testSupabaseConnection() {
   try {
     console.log("🔍 Testing Supabase connection...")
@@ -57,10 +52,23 @@ export async function testSupabaseConnection() {
     console.log("Anon Key:", supabaseAnonKey ? "Present" : "MISSING")
     console.log("Service Key:", supabaseServiceKey ? "Present" : "MISSING")
 
+    // Check environment variables first
+    const missingVars = []
+    if (!supabaseUrl) missingVars.push("NEXT_PUBLIC_SUPABASE_URL")
+    if (!supabaseAnonKey) missingVars.push("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+    if (!supabaseServiceKey) missingVars.push("SUPABASE_SERVICE_ROLE_KEY")
+
+    if (missingVars.length > 0) {
+      return {
+        success: false,
+        error: `Missing environment variables: ${missingVars.join(", ")}. Please configure them in your deployment settings.`,
+      }
+    }
+
     if (!supabaseAdmin) {
       return {
         success: false,
-        error: "Supabase admin client not initialized. Check environment variables.",
+        error: "Supabase admin client not initialized despite having environment variables.",
       }
     }
 

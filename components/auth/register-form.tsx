@@ -1,148 +1,161 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useToast } from "@/hooks/use-toast"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AddressForm } from "@/components/address-form"
 import { createUser } from "@/lib/services/user-service"
-import { fetchAddressByCep } from "@/lib/viacep"
+import { Loader2, User, Wrench, AlertCircle, CheckCircle } from "lucide-react"
+
+interface AddressData {
+  street: string
+  number: string
+  complement?: string
+  neighborhood: string
+  city: string
+  state: string
+  cep: string
+}
 
 export function RegisterForm() {
-  const { toast } = useToast()
+  const [userType, setUserType] = useState<"client" | "provider">("client")
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+  })
+  const [providerData, setProviderData] = useState({
+    bio: "",
+    experienceYears: "",
+    isPremium: false,
+    specialties: [] as string[],
+  })
+  const [address, setAddress] = useState<AddressData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [cepLoading, setCepLoading] = useState(false)
+  const [result, setResult] = useState<{ success: boolean; message: string; user?: any } | null>(null)
 
-  // Common fields
-  const [email, setEmail] = useState("")
-  const [name, setName] = useState("")
-  const [phone, setPhone] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
+  const specialtyOptions = [
+    "Eletricista",
+    "Encanador",
+    "Pintor",
+    "Pedreiro",
+    "Marceneiro",
+    "Jardineiro",
+    "Faxineiro",
+    "Técnico em Informática",
+    "Mecânico",
+    "Soldador",
+  ]
 
-  // Address fields
-  const [cep, setCep] = useState("")
-  const [street, setStreet] = useState("")
-  const [number, setNumber] = useState("")
-  const [complement, setComplement] = useState("")
-  const [neighborhood, setNeighborhood] = useState("")
-  const [city, setCity] = useState("")
-  const [state, setState] = useState("")
-
-  // Provider fields
-  const [bio, setBio] = useState("")
-  const [experienceYears, setExperienceYears] = useState("")
-  const [isPremium, setIsPremium] = useState(false)
-  const [specialties, setSpecialties] = useState("")
-
-  const handleCepChange = async (value: string) => {
-    setCep(value)
-
-    if (value.replace(/\D/g, "").length === 8) {
-      setCepLoading(true)
-      try {
-        const addressData = await fetchAddressByCep(value)
-        if (addressData) {
-          setStreet(addressData.logradouro)
-          setNeighborhood(addressData.bairro)
-          setCity(addressData.localidade)
-          setState(addressData.uf)
-          setComplement(addressData.complemento)
-        }
-      } catch (error) {
-        toast({
-          title: "Erro",
-          description: "Erro ao buscar CEP",
-          variant: "destructive",
-        })
-      } finally {
-        setCepLoading(false)
-      }
-    }
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = async (userType: "client" | "provider") => {
-    if (password !== confirmPassword) {
-      toast({
-        title: "Erro",
-        description: "As senhas não coincidem",
-        variant: "destructive",
-      })
+  const handleProviderDataChange = (field: string, value: any) => {
+    setProviderData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleSpecialtyToggle = (specialty: string) => {
+    setProviderData((prev) => ({
+      ...prev,
+      specialties: prev.specialties.includes(specialty)
+        ? prev.specialties.filter((s) => s !== specialty)
+        : [...prev.specialties, specialty],
+    }))
+  }
+
+  const validateForm = () => {
+    if (!formData.name || !formData.email || !formData.password) {
+      return "Preencha todos os campos obrigatórios"
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      return "As senhas não coincidem"
+    }
+
+    if (formData.password.length < 6) {
+      return "A senha deve ter pelo menos 6 caracteres"
+    }
+
+    if (!address) {
+      return "Preencha o endereço"
+    }
+
+    return null
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const validationError = validateForm()
+    if (validationError) {
+      setResult({ success: false, message: validationError })
       return
     }
 
     setIsLoading(true)
+    setResult(null)
 
     try {
       const userData = {
-        email,
-        name,
-        phone,
-        password,
+        email: formData.email,
+        name: formData.name,
+        phone: formData.phone,
+        password: formData.password,
         userType,
-        address: cep
-          ? {
-              street,
-              number,
-              complement,
-              neighborhood,
-              city,
-              state,
-              cep,
-            }
-          : undefined,
-        providerData:
-          userType === "provider"
-            ? {
-                bio,
-                experienceYears: experienceYears ? Number.parseInt(experienceYears) : undefined,
-                isPremium,
-                specialties: specialties ? specialties.split(",").map((s) => s.trim()) : undefined,
-              }
-            : undefined,
+        address,
+        ...(userType === "provider" && {
+          providerData: {
+            bio: providerData.bio,
+            experienceYears: Number.parseInt(providerData.experienceYears) || 0,
+            isPremium: providerData.isPremium,
+            specialties: providerData.specialties,
+          },
+        }),
       }
 
-      const result = await createUser(userData)
+      const createResult = await createUser(userData)
 
-      if (result.success) {
-        toast({
-          title: "Sucesso!",
-          description: "Conta criada com sucesso",
+      if (createResult.success) {
+        setResult({
+          success: true,
+          message: `${userType === "client" ? "Cliente" : "Prestador"} cadastrado com sucesso!`,
+          user: createResult.user,
         })
-
         // Reset form
-        setEmail("")
-        setName("")
-        setPhone("")
-        setPassword("")
-        setConfirmPassword("")
-        setCep("")
-        setStreet("")
-        setNumber("")
-        setComplement("")
-        setNeighborhood("")
-        setCity("")
-        setState("")
-        setBio("")
-        setExperienceYears("")
-        setIsPremium(false)
-        setSpecialties("")
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          password: "",
+          confirmPassword: "",
+        })
+        setProviderData({
+          bio: "",
+          experienceYears: "",
+          isPremium: false,
+          specialties: [],
+        })
+        setAddress(null)
       } else {
-        toast({
-          title: "Erro",
-          description: result.error || "Erro ao criar conta",
-          variant: "destructive",
+        setResult({
+          success: false,
+          message: createResult.error || "Erro ao criar conta",
         })
       }
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro inesperado ao criar conta",
-        variant: "destructive",
+      setResult({
+        success: false,
+        message: error instanceof Error ? error.message : "Erro desconhecido",
       })
     } finally {
       setIsLoading(false)
@@ -153,216 +166,202 @@ export function RegisterForm() {
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>Criar Conta</CardTitle>
-        <CardDescription>Escolha o tipo de conta que deseja criar</CardDescription>
+        <CardDescription>Preencha os dados para criar sua conta no Maridão</CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="client" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="client">Cliente</TabsTrigger>
-            <TabsTrigger value="provider">Prestador</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="client" className="space-y-4">
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="client-name">Nome Completo</Label>
-                  <Input
-                    id="client-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Seu nome completo"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="client-email">Email</Label>
-                  <Input
-                    id="client-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seu@email.com"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="client-phone">Telefone</Label>
-                  <Input
-                    id="client-phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="(11) 99999-9999"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="client-cep">CEP</Label>
-                  <Input
-                    id="client-cep"
-                    value={cep}
-                    onChange={(e) => handleCepChange(e.target.value)}
-                    placeholder="00000-000"
-                    disabled={cepLoading}
-                  />
-                </div>
-              </div>
-
-              {street && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="client-street">Rua</Label>
-                    <Input
-                      id="client-street"
-                      value={street}
-                      onChange={(e) => setStreet(e.target.value)}
-                      placeholder="Nome da rua"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="client-number">Número</Label>
-                    <Input
-                      id="client-number"
-                      value={number}
-                      onChange={(e) => setNumber(e.target.value)}
-                      placeholder="123"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="client-password">Senha</Label>
-                  <Input
-                    id="client-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Sua senha"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="client-confirm-password">Confirmar Senha</Label>
-                  <Input
-                    id="client-confirm-password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirme sua senha"
-                    required
-                  />
-                </div>
-              </div>
-
-              <Button onClick={() => handleSubmit("client")} disabled={isLoading} className="w-full">
-                {isLoading ? "Criando conta..." : "Criar Conta de Cliente"}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* User Type Selection */}
+          <div className="space-y-3">
+            <Label>Tipo de Conta *</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                type="button"
+                variant={userType === "client" ? "default" : "outline"}
+                onClick={() => setUserType("client")}
+                className="h-20 flex-col gap-2"
+              >
+                <User className="h-6 w-6" />
+                <span>Cliente</span>
+              </Button>
+              <Button
+                type="button"
+                variant={userType === "provider" ? "default" : "outline"}
+                onClick={() => setUserType("provider")}
+                className="h-20 flex-col gap-2"
+              >
+                <Wrench className="h-6 w-6" />
+                <span>Prestador</span>
               </Button>
             </div>
-          </TabsContent>
+          </div>
 
-          <TabsContent value="provider" className="space-y-4">
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="provider-name">Nome Completo</Label>
-                  <Input
-                    id="provider-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Seu nome completo"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="provider-email">Email</Label>
-                  <Input
-                    id="provider-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seu@email.com"
-                    required
-                  />
-                </div>
+          {/* Basic Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Informações Básicas</h3>
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome Completo *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                placeholder="Seu nome completo"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+                placeholder="seu@email.com"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Telefone</Label>
+              <Input
+                id="phone"
+                value={formData.phone}
+                onChange={(e) => handleInputChange("phone", e.target.value)}
+                placeholder="(11) 99999-9999"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange("password", e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  required
+                />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="provider-bio">Biografia</Label>
+                <Label htmlFor="confirmPassword">Confirmar Senha *</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                  placeholder="Confirme sua senha"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Provider-specific fields */}
+          {userType === "provider" && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Informações do Prestador</h3>
+
+              <div className="space-y-2">
+                <Label htmlFor="bio">Biografia</Label>
                 <Textarea
-                  id="provider-bio"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
+                  id="bio"
+                  value={providerData.bio}
+                  onChange={(e) => handleProviderDataChange("bio", e.target.value)}
                   placeholder="Conte um pouco sobre sua experiência..."
                   rows={3}
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="provider-experience">Anos de Experiência</Label>
-                  <Input
-                    id="provider-experience"
-                    type="number"
-                    value={experienceYears}
-                    onChange={(e) => setExperienceYears(e.target.value)}
-                    placeholder="5"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="provider-specialties">Especialidades</Label>
-                  <Input
-                    id="provider-specialties"
-                    value={specialties}
-                    onChange={(e) => setSpecialties(e.target.value)}
-                    placeholder="Eletricista, Encanador, etc."
-                  />
+              <div className="space-y-2">
+                <Label htmlFor="experienceYears">Anos de Experiência</Label>
+                <Input
+                  id="experienceYears"
+                  type="number"
+                  value={providerData.experienceYears}
+                  onChange={(e) => handleProviderDataChange("experienceYears", e.target.value)}
+                  placeholder="0"
+                  min="0"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <Label>Especialidades</Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {specialtyOptions.map((specialty) => (
+                    <div key={specialty} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={specialty}
+                        checked={providerData.specialties.includes(specialty)}
+                        onCheckedChange={() => handleSpecialtyToggle(specialty)}
+                      />
+                      <Label htmlFor={specialty} className="text-sm">
+                        {specialty}
+                      </Label>
+                    </div>
+                  ))}
                 </div>
               </div>
 
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="provider-premium"
-                  checked={isPremium}
-                  onCheckedChange={(checked) => setIsPremium(checked as boolean)}
+                  id="isPremium"
+                  checked={providerData.isPremium}
+                  onCheckedChange={(checked) => handleProviderDataChange("isPremium", checked)}
                 />
-                <Label htmlFor="provider-premium">Plano Premium</Label>
+                <Label htmlFor="isPremium">Plano Premium</Label>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="provider-password">Senha</Label>
-                  <Input
-                    id="provider-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Sua senha"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="provider-confirm-password">Confirmar Senha</Label>
-                  <Input
-                    id="provider-confirm-password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirme sua senha"
-                    required
-                  />
-                </div>
-              </div>
-
-              <Button onClick={() => handleSubmit("provider")} disabled={isLoading} className="w-full">
-                {isLoading ? "Criando conta..." : "Criar Conta de Prestador"}
-              </Button>
             </div>
-          </TabsContent>
-        </Tabs>
+          )}
+
+          {/* Address Form */}
+          <AddressForm onAddressChange={setAddress} />
+
+          {/* Submit Button */}
+          <Button type="submit" disabled={isLoading} className="w-full">
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Criando conta...
+              </>
+            ) : (
+              `Criar Conta ${userType === "client" ? "Cliente" : "Prestador"}`
+            )}
+          </Button>
+
+          {/* Result Message */}
+          {result && (
+            <Alert variant={result.success ? "default" : "destructive"}>
+              {result.success ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+              <AlertDescription>
+                <div className="space-y-2">
+                  <div className="font-medium">
+                    {result.success ? "Conta Criada com Sucesso!" : "Erro ao Criar Conta"}
+                  </div>
+                  <div className="text-sm">{result.message}</div>
+                  {result.user && (
+                    <div className="text-xs space-y-1 mt-2 p-2 bg-background rounded border">
+                      <div>
+                        <strong>ID:</strong> {result.user.id}
+                      </div>
+                      <div>
+                        <strong>Nome:</strong> {result.user.name}
+                      </div>
+                      <div>
+                        <strong>Email:</strong> {result.user.email}
+                      </div>
+                      <div>
+                        <strong>Tipo:</strong> {result.user.userType}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+        </form>
       </CardContent>
     </Card>
   )

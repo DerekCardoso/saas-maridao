@@ -7,49 +7,56 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useToast } from "@/hooks/use-toast"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { loginUser } from "@/lib/services/user-service"
+import { Loader2, LogIn, AlertCircle, CheckCircle } from "lucide-react"
 
 export function LoginForm() {
-  const { toast } = useToast()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  })
   const [isLoading, setIsLoading] = useState(false)
+  const [result, setResult] = useState<{ success: boolean; message: string; user?: any } | null>(null)
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    setResult(null) // Clear previous results when user types
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!formData.email || !formData.password) {
+      setResult({ success: false, message: "Preencha todos os campos" })
+      return
+    }
+
     setIsLoading(true)
+    setResult(null)
 
     try {
-      const result = await loginUser({ email, password })
+      const loginResult = await loginUser(formData)
 
-      if (result.success) {
-        toast({
-          title: "Sucesso!",
-          description: "Login realizado com sucesso",
+      if (loginResult.success) {
+        setResult({
+          success: true,
+          message: "Login realizado com sucesso!",
+          user: loginResult.user,
         })
 
-        // Redirect based on user type
-        const userType = result.user?.userType
-        if (userType === "admin") {
-          window.location.href = "/dashboard/admin"
-        } else if (userType === "provider") {
-          window.location.href = "/dashboard/provider"
-        } else {
-          window.location.href = "/dashboard/client"
-        }
+        // Here you would typically redirect the user or update global state
+        // For now, we'll just show the success message
       } else {
-        toast({
-          title: "Erro",
-          description: result.error || "Erro ao fazer login",
-          variant: "destructive",
+        setResult({
+          success: false,
+          message: loginResult.error || "Erro ao fazer login",
         })
       }
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro inesperado ao fazer login",
-        variant: "destructive",
+      setResult({
+        success: false,
+        message: error instanceof Error ? error.message : "Erro desconhecido",
       })
     } finally {
       setIsLoading(false)
@@ -59,8 +66,11 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
-        <CardTitle>Login</CardTitle>
-        <CardDescription>Entre na sua conta</CardDescription>
+        <CardTitle className="flex items-center gap-2">
+          <LogIn className="h-5 w-5" />
+          Entrar
+        </CardTitle>
+        <CardDescription>Faça login em sua conta do Maridão</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -69,8 +79,8 @@ export function LoginForm() {
             <Input
               id="email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={formData.email}
+              onChange={(e) => handleInputChange("email", e.target.value)}
               placeholder="seu@email.com"
               required
             />
@@ -81,16 +91,57 @@ export function LoginForm() {
             <Input
               id="password"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={formData.password}
+              onChange={(e) => handleInputChange("password", e.target.value)}
               placeholder="Sua senha"
               required
             />
           </div>
 
           <Button type="submit" disabled={isLoading} className="w-full">
-            {isLoading ? "Entrando..." : "Entrar"}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Entrando...
+              </>
+            ) : (
+              "Entrar"
+            )}
           </Button>
+
+          {result && (
+            <Alert variant={result.success ? "default" : "destructive"}>
+              {result.success ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+              <AlertDescription>
+                <div className="space-y-2">
+                  <div className="font-medium">{result.success ? "Login Realizado!" : "Erro no Login"}</div>
+                  <div className="text-sm">{result.message}</div>
+                  {result.user && (
+                    <div className="text-xs space-y-1 mt-2 p-2 bg-background rounded border">
+                      <div>
+                        <strong>Bem-vindo:</strong> {result.user.name}
+                      </div>
+                      <div>
+                        <strong>Tipo:</strong> {result.user.userType}
+                      </div>
+                      <div>
+                        <strong>Email:</strong> {result.user.email}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="text-center text-sm text-muted-foreground">
+            <p>
+              Não tem uma conta?{" "}
+              <a href="/register" className="text-primary hover:underline">
+                Cadastre-se
+              </a>
+            </p>
+          </div>
         </form>
       </CardContent>
     </Card>

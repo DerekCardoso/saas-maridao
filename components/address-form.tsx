@@ -1,196 +1,212 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { CepInput } from "@/components/cep-input"
-import { fetchAddressByCep, type Address } from "@/lib/viacep"
-import { Loader2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { fetchAddressByCep, validateCep, formatCep } from "@/lib/viacep"
+import { Loader2, MapPin, AlertCircle } from "lucide-react"
 
-interface AddressFormProps {
-  onAddressChange?: (address: Address) => void
-  initialAddress?: Partial<Address>
-  showSubmitButton?: boolean
-  onSubmit?: (address: Address) => void
+interface AddressData {
+  street: string
+  number: string
+  complement?: string
+  neighborhood: string
+  city: string
+  state: string
+  cep: string
 }
 
-export function AddressForm({ onAddressChange, initialAddress, showSubmitButton = false, onSubmit }: AddressFormProps) {
-  const [address, setAddress] = useState<Partial<Address>>({
-    cep: "",
-    logradouro: "",
-    complemento: "",
-    bairro: "",
-    localidade: "",
-    uf: "",
-    ...initialAddress,
-  })
+interface AddressFormProps {
+  onAddressChange: (address: AddressData) => void
+  initialAddress?: Partial<AddressData>
+}
 
-  const [isLoading, setIsLoading] = useState(false)
-  const [isManualInput, setIsManualInput] = useState(false)
+export function AddressForm({ onAddressChange, initialAddress }: AddressFormProps) {
+  const [cep, setCep] = useState(initialAddress?.cep || "")
+  const [street, setStreet] = useState(initialAddress?.street || "")
+  const [number, setNumber] = useState(initialAddress?.number || "")
+  const [complement, setComplement] = useState(initialAddress?.complement || "")
+  const [neighborhood, setNeighborhood] = useState(initialAddress?.neighborhood || "")
+  const [city, setCity] = useState(initialAddress?.city || "")
+  const [state, setState] = useState(initialAddress?.state || "")
+  const [isLoadingCep, setIsLoadingCep] = useState(false)
+  const [cepError, setCepError] = useState("")
 
+  // Update parent component when address changes
   useEffect(() => {
-    if (initialAddress) {
-      setAddress((prev) => ({ ...prev, ...initialAddress }))
+    if (street && neighborhood && city && state && cep) {
+      onAddressChange({
+        street,
+        number,
+        complement,
+        neighborhood,
+        city,
+        state,
+        cep: cep.replace(/\D/g, ""), // Remove formatting for storage
+      })
     }
-  }, [initialAddress])
+  }, [street, number, complement, neighborhood, city, state, cep, onAddressChange])
 
-  const handleCepChange = async (cep: string, isValid: boolean) => {
-    setAddress((prev) => ({ ...prev, cep }))
+  const handleCepChange = (value: string) => {
+    // Format CEP as user types
+    const formatted = formatCep(value)
+    setCep(formatted)
+    setCepError("")
 
-    if (!isValid) return
+    // Auto-fetch address when CEP is complete
+    const cleanCep = value.replace(/\D/g, "")
+    if (cleanCep.length === 8) {
+      fetchAddressFromCep(cleanCep)
+    }
   }
 
-  const handleCepBlur = async (cep: string, isValid: boolean) => {
-    if (!isValid) return
+  const fetchAddressFromCep = async (cepValue: string) => {
+    if (!validateCep(cepValue)) {
+      setCepError("CEP deve ter 8 dígitos")
+      return
+    }
 
-    setIsLoading(true)
+    setIsLoadingCep(true)
+    setCepError("")
 
     try {
-      const addressData = await fetchAddressByCep(cep)
+      const address = await fetchAddressByCep(cepValue)
 
-      if (addressData) {
-        const newAddress = {
-          ...address,
-          ...addressData,
-        }
-
-        setAddress(newAddress)
-
-        if (onAddressChange) {
-          onAddressChange(newAddress as Address)
-        }
+      if (address) {
+        setStreet(address.logradouro || "")
+        setNeighborhood(address.bairro || "")
+        setCity(address.localidade || "")
+        setState(address.uf || "")
       } else {
-        setIsManualInput(true)
+        setCepError("CEP não encontrado")
       }
     } catch (error) {
-      console.error("Erro ao buscar endereço:", error)
-      setIsManualInput(true)
+      setCepError("Erro ao buscar CEP")
+      console.error("Erro ao buscar CEP:", error)
     } finally {
-      setIsLoading(false)
+      setIsLoadingCep(false)
     }
   }
 
-  const handleInputChange = (field: keyof Address, value: string) => {
-    setAddress((prev) => {
-      const newAddress = { ...prev, [field]: value }
-
-      if (onAddressChange && isAddressComplete(newAddress)) {
-        onAddressChange(newAddress as Address)
-      }
-
-      return newAddress
-    })
-  }
-
-  const isAddressComplete = (addr: Partial<Address>): boolean => {
-    return !!(addr.cep && addr.logradouro && addr.bairro && addr.localidade && addr.uf)
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (onSubmit && isAddressComplete(address)) {
-      onSubmit(address as Address)
+  const handleManualCepSearch = () => {
+    const cleanCep = cep.replace(/\D/g, "")
+    if (cleanCep.length === 8) {
+      fetchAddressFromCep(cleanCep)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mb-4">
+        <MapPin className="h-5 w-5 text-muted-foreground" />
+        <h3 className="text-lg font-medium">Endereço</h3>
+      </div>
+
+      {/* CEP Field */}
       <div className="space-y-2">
-        <Label htmlFor="cep">CEP</Label>
+        <Label htmlFor="cep">CEP *</Label>
         <div className="flex gap-2">
-          <CepInput
+          <Input
             id="cep"
+            value={cep}
+            onChange={(e) => handleCepChange(e.target.value)}
             placeholder="00000-000"
-            value={address.cep}
-            onChange={handleCepChange}
-            onBlur={handleCepBlur}
-            disabled={isLoading}
+            maxLength={9}
+            className="flex-1"
           />
-          {isLoading && (
-            <Button variant="ghost" size="icon" disabled>
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleManualCepSearch}
+            disabled={isLoadingCep || !validateCep(cep)}
+          >
+            {isLoadingCep ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
+          </Button>
         </div>
-        {isManualInput && (
-          <p className="text-xs text-muted-foreground">
-            CEP não encontrado. Por favor, preencha o endereço manualmente.
-          </p>
+        {cepError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{cepError}</AlertDescription>
+          </Alert>
         )}
       </div>
 
+      {/* Street Field */}
       <div className="space-y-2">
-        <Label htmlFor="street">Rua</Label>
+        <Label htmlFor="street">Logradouro *</Label>
         <Input
           id="street"
-          value={address.logradouro || ""}
-          onChange={(e) => handleInputChange("logradouro", e.target.value)}
-          disabled={isLoading && !isManualInput}
+          value={street}
+          onChange={(e) => setStreet(e.target.value)}
+          placeholder="Rua, Avenida, etc."
+          required
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      {/* Number and Complement */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="number">Número</Label>
-          <Input
-            id="number"
-            placeholder="Número"
-            onChange={(e) => handleInputChange("number" as any, e.target.value)}
-          />
+          <Label htmlFor="number">Número *</Label>
+          <Input id="number" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="123" required />
         </div>
+
         <div className="space-y-2">
           <Label htmlFor="complement">Complemento</Label>
           <Input
             id="complement"
-            value={address.complemento || ""}
-            onChange={(e) => handleInputChange("complemento", e.target.value)}
-            disabled={isLoading && !isManualInput}
-            placeholder="Opcional"
+            value={complement}
+            onChange={(e) => setComplement(e.target.value)}
+            placeholder="Apto, Bloco, etc."
           />
         </div>
       </div>
 
+      {/* Neighborhood Field */}
       <div className="space-y-2">
-        <Label htmlFor="neighborhood">Bairro</Label>
+        <Label htmlFor="neighborhood">Bairro *</Label>
         <Input
           id="neighborhood"
-          value={address.bairro || ""}
-          onChange={(e) => handleInputChange("bairro", e.target.value)}
-          disabled={isLoading && !isManualInput}
+          value={neighborhood}
+          onChange={(e) => setNeighborhood(e.target.value)}
+          placeholder="Nome do bairro"
+          required
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2 space-y-2">
-          <Label htmlFor="city">Cidade</Label>
+      {/* City and State */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-2 space-y-2">
+          <Label htmlFor="city">Cidade *</Label>
           <Input
             id="city"
-            value={address.localidade || ""}
-            onChange={(e) => handleInputChange("localidade", e.target.value)}
-            disabled={isLoading && !isManualInput}
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="Nome da cidade"
+            required
           />
         </div>
+
         <div className="space-y-2">
-          <Label htmlFor="state">Estado</Label>
+          <Label htmlFor="state">Estado *</Label>
           <Input
             id="state"
-            value={address.uf || ""}
-            onChange={(e) => handleInputChange("uf", e.target.value)}
-            disabled={isLoading && !isManualInput}
+            value={state}
+            onChange={(e) => setState(e.target.value.toUpperCase())}
+            placeholder="SP"
             maxLength={2}
+            required
           />
         </div>
       </div>
 
-      {showSubmitButton && (
-        <Button type="submit" className="w-full" disabled={!isAddressComplete(address) || isLoading}>
-          Salvar Endereço
-        </Button>
+      {isLoadingCep && (
+        <Alert>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <AlertDescription>Buscando endereço...</AlertDescription>
+        </Alert>
       )}
-    </form>
+    </div>
   )
 }

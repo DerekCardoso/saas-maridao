@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs"
-import { getSupabaseAdmin } from "@/lib/supabase"
 
 interface SupabaseProvider {
   is_premium: boolean
@@ -67,11 +66,23 @@ export interface User {
   isAdmin: boolean
 }
 
+// Safe function to get supabase admin with error handling
+function getSupabaseAdminSafe() {
+  try {
+    // Dynamic import to avoid initialization errors
+    const { getSupabaseAdmin } = require("@/lib/supabase")
+    return getSupabaseAdmin()
+  } catch (error) {
+    console.error("❌ Error getting Supabase admin client:", error)
+    throw new Error("Database connection not available. Please check environment variables.")
+  }
+}
+
 export async function createUser(userData: CreateUserData): Promise<{ success: boolean; user?: User; error?: string }> {
   try {
     console.log("🔄 Iniciando criação de usuário:", userData.email)
 
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseAdminSafe()
 
     // Check if email already exists
     console.log("🔍 Verificando se email já existe...")
@@ -208,7 +219,7 @@ export async function loginUser(loginData: LoginData): Promise<{ success: boolea
   try {
     console.log("🔄 Iniciando login:", loginData.email)
 
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseAdminSafe()
 
     // Find user by email
     console.log("🔍 Buscando usuário...")
@@ -258,7 +269,7 @@ export async function validateUserCredentials(email: string, password: string): 
   try {
     console.log("🔍 Validando credenciais para:", email)
 
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseAdminSafe()
 
     // Find user by email
     console.log("🔍 Buscando usuário...")
@@ -300,7 +311,7 @@ export async function validateUserCredentials(email: string, password: string): 
 
 export async function getUserByEmailService(email: string): Promise<any | null> {
   try {
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseAdminSafe()
 
     const { data: user, error } = await supabase.from("users").select("*").eq("email", email.toLowerCase()).single()
 
@@ -324,7 +335,7 @@ export async function getUserByEmailService(email: string): Promise<any | null> 
 
 export async function getAllUsersService() {
   try {
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseAdminSafe()
 
     const { data: users, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
 
@@ -338,7 +349,7 @@ export async function getAllUsersService() {
 
 export async function getUserService(id: string) {
   try {
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseAdminSafe()
 
     const { data: user, error } = await supabase.from("users").select("*").eq("id", id).single()
 
@@ -352,7 +363,7 @@ export async function getUserService(id: string) {
 
 export async function updateUserService(id: string, userData: any) {
   try {
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseAdminSafe()
 
     const { data: user, error } = await supabase.from("users").update(userData).eq("id", id).select().single()
 
@@ -366,7 +377,7 @@ export async function updateUserService(id: string, userData: any) {
 
 export async function deleteUserService(id: string): Promise<boolean> {
   try {
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseAdminSafe()
 
     const { error } = await supabase.from("users").delete().eq("id", id)
 
