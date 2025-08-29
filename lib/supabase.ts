@@ -1,36 +1,51 @@
 import { createClient } from "@supabase/supabase-js"
 
-// Environment variables - these should be set in your Vercel deployment
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+// Environment variables with fallbacks for development
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 
-// Main Supabase client for general use
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Validate required environment variables
+if (!supabaseUrl) {
+  console.error("❌ Missing NEXT_PUBLIC_SUPABASE_URL environment variable")
+}
 
-// Admin client for server-side operations (never use in browser)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
+if (!supabaseAnonKey) {
+  console.error("❌ Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable")
+}
+
+if (!supabaseServiceKey) {
+  console.error("❌ Missing SUPABASE_SERVICE_ROLE_KEY environment variable")
+}
+
+// Create clients only if we have the required variables
+export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
+
+export const supabaseAdmin =
+  supabaseUrl && supabaseServiceKey
+    ? createClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      })
+    : null
 
 // Export default for compatibility
 export default supabase
 
-// Browser client function
-export function createSupabaseBrowserClient() {
-  return createClient(supabaseUrl, supabaseAnonKey)
+// Helper functions
+export function getSupabaseClient() {
+  if (!supabase) {
+    throw new Error("Supabase client not initialized. Check environment variables.")
+  }
+  return supabase
 }
 
-// Server client function (for when we migrate to Supabase Auth)
-export function createSupabaseServerClient() {
-  return createClient(supabaseUrl, supabaseAnonKey)
-}
-
-// Admin client function
 export function getSupabaseAdmin() {
+  if (!supabaseAdmin) {
+    throw new Error("Supabase admin client not initialized. Check environment variables.")
+  }
   return supabaseAdmin
 }
 
@@ -38,9 +53,16 @@ export function getSupabaseAdmin() {
 export async function testSupabaseConnection() {
   try {
     console.log("🔍 Testing Supabase connection...")
-    console.log("URL:", supabaseUrl)
-    console.log("Anon Key:", supabaseAnonKey ? "Present" : "Missing")
-    console.log("Service Key:", supabaseServiceKey ? "Present" : "Missing")
+    console.log("URL:", supabaseUrl || "MISSING")
+    console.log("Anon Key:", supabaseAnonKey ? "Present" : "MISSING")
+    console.log("Service Key:", supabaseServiceKey ? "Present" : "MISSING")
+
+    if (!supabaseAdmin) {
+      return {
+        success: false,
+        error: "Supabase admin client not initialized. Check environment variables.",
+      }
+    }
 
     const { data, error } = await supabaseAdmin.from("users").select("count").limit(1)
 

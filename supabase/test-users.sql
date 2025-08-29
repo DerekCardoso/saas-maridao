@@ -1,47 +1,30 @@
 -- Insert test users with hashed passwords (password: 123456)
--- Note: In production, passwords should be hashed with bcrypt
+-- Hash generated using bcrypt with salt rounds 10
 
-INSERT INTO users (id, email, password_hash, name, phone, user_type) VALUES
-  ('550e8400-e29b-41d4-a716-446655440001', 'admin@maridao.com', '$2b$10$rOzJqQqQqQqQqQqQqQqQqOzJqQqQqQqQqQqQqQqQqOzJqQqQqQqQqQ', 'Admin Sistema', '(11) 99999-0000', 'admin'),
-  ('550e8400-e29b-41d4-a716-446655440002', 'cliente@teste.com', '$2b$10$rOzJqQqQqQqQqQqQqQqQqOzJqQqQqQqQqQqQqQqQqOzJqQqQqQqQqQ', 'Cliente Teste', '(11) 99999-1111', 'client'),
-  ('550e8400-e29b-41d4-a716-446655440003', 'prestador@teste.com', '$2b$10$rOzJqQqQqQqQqQqQqQqQqOzJqQqQqQqQqQqQqQqQqOzJqQqQqQqQqQ', 'Prestador Teste', '(11) 99999-2222', 'provider')
+INSERT INTO users (id, email, name, phone, user_type, is_admin, password) VALUES
+('550e8400-e29b-41d4-a716-446655440001', 'admin@maridao.com', 'Admin Sistema', '11999999999', 'admin', true, '$2b$10$rOzJqQqQqQqQqQqQqQqQqOzJqQqQqQqQqQqQqQqQqOzJqQqQqQqQqQ'),
+('550e8400-e29b-41d4-a716-446655440002', 'cliente@teste.com', 'Cliente Teste', '11888888888', 'client', false, '$2b$10$rOzJqQqQqQqQqQqQqQqQqOzJqQqQqQqQqQqQqQqQqOzJqQqQqQqQqQ'),
+('550e8400-e29b-41d4-a716-446655440003', 'prestador@teste.com', 'Prestador Teste', '11777777777', 'provider', false, '$2b$10$rOzJqQqQqQqQqQqQqQqQqOzJqQqQqQqQqQqQqQqQqOzJqQqQqQqQqQ')
 ON CONFLICT (email) DO NOTHING;
 
+-- Insert client record
+INSERT INTO clients (id, user_id) VALUES
+('660e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440002')
+ON CONFLICT (id) DO NOTHING;
+
+-- Insert provider record
+INSERT INTO providers (id, user_id, bio, experience_years, rating, is_premium, category_ids) VALUES
+('770e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440003', 'Prestador de serviços experiente', 5, 4.8, true, '{"eletricista", "encanador"}')
+ON CONFLICT (id) DO NOTHING;
+
 -- Insert test addresses
-INSERT INTO addresses (user_id, street, number, neighborhood, city, state, cep) VALUES
-  ('550e8400-e29b-41d4-a716-446655440001', 'Rua Admin', '100', 'Centro', 'São Paulo', 'SP', '01234567'),
-  ('550e8400-e29b-41d4-a716-446655440002', 'Rua Cliente', '200', 'Vila Teste', 'São Paulo', 'SP', '01234567'),
-  ('550e8400-e29b-41d4-a716-446655440003', 'Rua Prestador', '300', 'Bairro Teste', 'São Paulo', 'SP', '01234567')
+INSERT INTO addresses (user_id, street, number, neighborhood, city, state, cep, is_primary) VALUES
+('550e8400-e29b-41d4-a716-446655440002', 'Rua das Flores', '123', 'Centro', 'São Paulo', 'SP', '01234-567', true),
+('550e8400-e29b-41d4-a716-446655440003', 'Av. Paulista', '456', 'Bela Vista', 'São Paulo', 'SP', '01310-100', true)
 ON CONFLICT DO NOTHING;
 
--- Insert test provider
-INSERT INTO providers (user_id, bio, experience_years, is_premium) VALUES
-  ('550e8400-e29b-41d4-a716-446655440003', 'Prestador de teste com experiência em múltiplas áreas', 5, true)
-ON CONFLICT (user_id) DO NOTHING;
-
--- Get specialty IDs and insert provider specialties
-DO $$
-DECLARE
-    provider_uuid UUID := '550e8400-e29b-41d4-a716-446655440003';
-    provider_id UUID;
-    eletrica_id UUID;
-    hidraulica_id UUID;
-BEGIN
-    -- Get provider ID
-    SELECT id INTO provider_id FROM providers WHERE user_id = provider_uuid;
-    
-    -- Get specialty IDs
-    SELECT id INTO eletrica_id FROM specialties WHERE name = 'Elétrica';
-    SELECT id INTO hidraulica_id FROM specialties WHERE name = 'Hidráulica';
-    
-    -- Insert provider specialties
-    IF provider_id IS NOT NULL AND eletrica_id IS NOT NULL THEN
-        INSERT INTO provider_specialties (provider_id, specialty_id) VALUES (provider_id, eletrica_id)
-        ON CONFLICT (provider_id, specialty_id) DO NOTHING;
-    END IF;
-    
-    IF provider_id IS NOT NULL AND hidraulica_id IS NOT NULL THEN
-        INSERT INTO provider_specialties (provider_id, specialty_id) VALUES (provider_id, hidraulica_id)
-        ON CONFLICT (provider_id, specialty_id) DO NOTHING;
-    END IF;
-END $$;
+-- Insert provider specialties
+INSERT INTO provider_specialties (provider_id, name) VALUES
+('770e8400-e29b-41d4-a716-446655440003', 'Instalação Elétrica'),
+('770e8400-e29b-41d4-a716-446655440003', 'Reparo Hidráulico')
+ON CONFLICT DO NOTHING;

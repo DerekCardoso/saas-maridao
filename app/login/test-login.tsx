@@ -3,266 +3,127 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/components/ui/use-toast"
 import { loginUser } from "@/lib/services/user-service"
-import { Loader2, CheckCircle, XCircle, User } from "lucide-react"
-
-interface TestCredential {
-  email: string
-  password: string
-  type: string
-  description: string
-}
 
 export function TestLogin() {
+  const [email, setEmail] = useState("cliente@teste.com")
+  const [password, setPassword] = useState("123456")
   const [isLoading, setIsLoading] = useState(false)
-  const [customEmail, setCustomEmail] = useState("")
-  const [customPassword, setCustomPassword] = useState("")
-  const [results, setResults] = useState<
-    Array<{
-      email: string
-      success: boolean
-      error?: string
-      user?: any
-    }>
-  >([])
-  const { toast } = useToast()
+  const [result, setResult] = useState<{ success: boolean; message: string; user?: any } | null>(null)
 
-  const testCredentials: TestCredential[] = [
-    {
-      email: "admin@maridao.com",
-      password: "123456",
-      type: "admin",
-      description: "Administrador do Sistema",
-    },
-    {
-      email: "cliente@teste.com",
-      password: "123456",
-      type: "client",
-      description: "Cliente de Teste",
-    },
-    {
-      email: "prestador@teste.com",
-      password: "123456",
-      type: "provider",
-      description: "Prestador de Teste",
-    },
+  const testCredentials = [
+    { email: "admin@maridao.com", password: "123456", type: "Admin" },
+    { email: "cliente@teste.com", password: "123456", type: "Cliente" },
+    { email: "prestador@teste.com", password: "123456", type: "Prestador" },
   ]
 
-  const testLogin = async (email: string, password: string) => {
-    try {
-      console.log(`🔐 Testando login: ${email}`)
-      const result = await loginUser(email, password)
+  const handleLogin = async () => {
+    setIsLoading(true)
+    setResult(null)
 
-      if (result.success) {
-        console.log(`✅ Login bem-sucedido: ${email}`)
-        return {
-          email,
+    try {
+      const loginResult = await loginUser({ email, password })
+
+      if (loginResult.success) {
+        setResult({
           success: true,
-          user: result.user,
-        }
+          message: `Login realizado com sucesso! Tipo: ${loginResult.user?.userType}`,
+          user: loginResult.user,
+        })
       } else {
-        console.log(`❌ Login falhou: ${email} - ${result.error}`)
-        return {
-          email,
+        setResult({
           success: false,
-          error: result.error,
-        }
+          message: loginResult.error || "Erro desconhecido",
+        })
       }
     } catch (error) {
-      console.error(`💥 Exceção no login: ${email}`, error)
-      return {
-        email,
+      setResult({
         success: false,
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-      }
+        message: error instanceof Error ? error.message : "Erro desconhecido",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const runAllTests = async () => {
-    setIsLoading(true)
-    setResults([])
-
-    const newResults = []
-
-    for (const credential of testCredentials) {
-      const result = await testLogin(credential.email, credential.password)
-      newResults.push(result)
-    }
-
-    setResults(newResults)
-    setIsLoading(false)
-
-    const successCount = newResults.filter((r) => r.success).length
-    const totalCount = newResults.length
-
-    if (successCount === totalCount) {
-      toast({
-        title: "Todos os logins funcionaram! ✅",
-        description: `${successCount}/${totalCount} credenciais testadas com sucesso`,
-      })
-    } else {
-      toast({
-        title: "Alguns logins falharam ❌",
-        description: `${successCount}/${totalCount} credenciais funcionaram`,
-        variant: "destructive",
-      })
-    }
-  }
-
-  const testCustomLogin = async () => {
-    if (!customEmail || !customPassword) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Preencha email e senha",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsLoading(true)
-    const result = await testLogin(customEmail, customPassword)
-    setResults([result])
-    setIsLoading(false)
-
-    if (result.success) {
-      toast({
-        title: "Login realizado com sucesso! ✅",
-        description: `Bem-vindo, ${result.user?.name}`,
-      })
-    } else {
-      toast({
-        title: "Falha no login ❌",
-        description: result.error,
-        variant: "destructive",
-      })
-    }
+  const quickLogin = (testEmail: string, testPassword: string) => {
+    setEmail(testEmail)
+    setPassword(testPassword)
   }
 
   return (
     <div className="space-y-6">
-      {/* Test Predefined Credentials */}
-      <Card className="w-full max-w-2xl mx-auto">
+      <Card>
         <CardHeader>
-          <CardTitle>Teste de Login - Credenciais Pré-definidas</CardTitle>
-          <CardDescription>Teste as credenciais de usuários criados no banco de dados</CardDescription>
+          <CardTitle>Teste de Login</CardTitle>
+          <CardDescription>Teste o sistema de login com credenciais de teste</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3">
-            {testCredentials.map((credential, index) => (
-              <div key={index} className="p-3 border rounded-lg bg-muted/50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{credential.description}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {credential.email} / {credential.password}
-                    </div>
-                  </div>
-                  <div className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">{credential.type}</div>
-                </div>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            {testCredentials.map((cred, index) => (
+              <Button
+                key={index}
+                variant="outline"
+                size="sm"
+                onClick={() => quickLogin(cred.email, cred.password)}
+                className="text-xs"
+              >
+                {cred.type}
+              </Button>
             ))}
           </div>
 
-          <Button onClick={runAllTests} disabled={isLoading} className="w-full">
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Testando logins...
-              </>
-            ) : (
-              "Testar Todas as Credenciais"
-            )}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Custom Login Test */}
-      <Card className="w-full max-w-2xl mx-auto">
-        <CardHeader>
-          <CardTitle>Teste de Login - Credenciais Personalizadas</CardTitle>
-          <CardDescription>Teste com suas próprias credenciais</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="customEmail">Email</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
-              id="customEmail"
+              id="email"
               type="email"
-              value={customEmail}
-              onChange={(e) => setCustomEmail(e.target.value)}
-              placeholder="seu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Digite o email"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="customPassword">Senha</Label>
+            <Label htmlFor="password">Senha</Label>
             <Input
-              id="customPassword"
+              id="password"
               type="password"
-              value={customPassword}
-              onChange={(e) => setCustomPassword(e.target.value)}
-              placeholder="Sua senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Digite a senha"
             />
           </div>
 
-          <Button onClick={testCustomLogin} disabled={isLoading} className="w-full">
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Testando login...
-              </>
-            ) : (
-              <>
-                <User className="mr-2 h-4 w-4" />
-                Testar Login
-              </>
-            )}
+          <Button onClick={handleLogin} disabled={isLoading} className="w-full">
+            {isLoading ? "Fazendo Login..." : "Fazer Login"}
           </Button>
+
+          {result && (
+            <div
+              className={`p-4 border rounded-md ${result.success ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant={result.success ? "default" : "destructive"}>
+                  {result.success ? "Sucesso" : "Erro"}
+                </Badge>
+              </div>
+              <p className={`text-sm ${result.success ? "text-green-800" : "text-red-800"}`}>{result.message}</p>
+              {result.user && (
+                <div className="mt-2 text-xs text-gray-600">
+                  <p>ID: {result.user.id}</p>
+                  <p>Nome: {result.user.name}</p>
+                  <p>Email: {result.user.email}</p>
+                  <p>Tipo: {result.user.userType}</p>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Results */}
-      {results.length > 0 && (
-        <Card className="w-full max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle>Resultados dos Testes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {results.map((result, index) => (
-                <div
-                  key={index}
-                  className={`flex items-center gap-3 p-3 rounded-lg border ${
-                    result.success ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
-                  }`}
-                >
-                  {result.success ? (
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <XCircle className="h-5 w-5 text-red-600" />
-                  )}
-                  <div className="flex-1">
-                    <div className="font-medium">
-                      {result.email} - {result.success ? "Login OK" : "Login Falhou"}
-                    </div>
-                    {result.success && result.user && (
-                      <div className="text-sm text-muted-foreground">
-                        {result.user.name} ({result.user.userType})
-                      </div>
-                    )}
-                    {!result.success && result.error && (
-                      <div className="text-sm text-red-600">Erro: {result.error}</div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }
