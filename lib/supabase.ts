@@ -1,23 +1,27 @@
 import { createClient } from "@supabase/supabase-js"
 
 // Environment variables - these should be set in your Vercel deployment
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://lrgzntxgdivnimaxaqvp.supabase.co"
-const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyZ3pudHhnZGl2bmltYXhhcXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzNDY5NTEsImV4cCI6MjA2MzkyMjk1MX0.5CxSx82wSMChWm5kL16xWytcbuX5v97qDgq_WvmO_AM"
-const supabaseServiceKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyZ3pudHhnZGl2bmltYXhhcXZwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0ODM0Njk1MSwiZXhwIjoyMDYzOTIyOTUxfQ.mSJLxMf_SzT16aO6-EO4JgxxoCSLgqgpBqEr-WHAEWE"
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Missing Supabase environment variables")
+if (!supabaseUrl) {
+  throw new Error("Missing env.NEXT_PUBLIC_SUPABASE_URL")
+}
+
+if (!supabaseAnonKey) {
+  throw new Error("Missing env.NEXT_PUBLIC_SUPABASE_ANON_KEY")
+}
+
+if (!supabaseServiceKey) {
+  throw new Error("Missing env.SUPABASE_SERVICE_ROLE_KEY")
 }
 
 // Main Supabase client for general use
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Admin client for server-side operations (never use in browser)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey!, {
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
@@ -40,6 +44,32 @@ export function createSupabaseServerClient() {
 // Admin client function
 export function getSupabaseAdmin() {
   return supabaseAdmin
+}
+
+// Test connection function
+export async function testSupabaseConnection() {
+  try {
+    console.log("🔍 Testing Supabase connection...")
+    console.log("URL:", supabaseUrl)
+    console.log("Anon Key:", supabaseAnonKey ? "Present" : "Missing")
+    console.log("Service Key:", supabaseServiceKey ? "Present" : "Missing")
+
+    const { data, error } = await supabaseAdmin.from("users").select("count").limit(1)
+
+    if (error) {
+      console.error("❌ Supabase connection failed:", error)
+      return { success: false, error: error.message }
+    }
+
+    console.log("✅ Supabase connection successful")
+    return { success: true, data }
+  } catch (error) {
+    console.error("💥 Supabase connection error:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    }
+  }
 }
 
 // Database types

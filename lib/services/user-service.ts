@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs"
-import { supabase, supabaseAdmin } from "../supabase"
+import { supabase, supabaseAdmin, testSupabaseConnection } from "../supabase"
 import type { Address } from "../viacep"
 
 interface SupabaseProvider {
@@ -70,7 +70,20 @@ export async function createUser(
   try {
     console.log("🎯 Serviço: Iniciando criação de usuário", userData.email)
 
+    // Test connection first
+    const connectionTest = await testSupabaseConnection()
+    if (!connectionTest.success) {
+      console.error("❌ Falha na conexão com Supabase:", connectionTest.error)
+      return {
+        success: false,
+        error: `Erro de conexão com o banco de dados: ${connectionTest.error}. Verifique se as variáveis de ambiente estão configuradas corretamente.`,
+      }
+    }
+
+    console.log("✅ Conexão com Supabase OK")
+
     // Verificar se o email já existe usando admin client
+    console.log("🔍 Verificando se email já existe...")
     const { data: existingUser, error: checkError } = await supabaseAdmin
       .from("users")
       .select("email")
@@ -86,6 +99,8 @@ export async function createUser(
       console.error("❌ Email já existe:", userData.email)
       return { success: false, error: "Este email já está cadastrado. Tente fazer login ou use outro email." }
     }
+
+    console.log("✅ Email disponível")
 
     // Hash da senha
     console.log("🔐 Gerando hash da senha...")
@@ -224,6 +239,13 @@ export async function createUser(
 export async function validateUserCredentials(email: string, password: string): Promise<UserResponse | null> {
   try {
     console.log("🔍 Validando credenciais para:", email)
+
+    // Test connection first
+    const connectionTest = await testSupabaseConnection()
+    if (!connectionTest.success) {
+      console.error("❌ Falha na conexão com Supabase:", connectionTest.error)
+      return null
+    }
 
     // Use admin client to bypass RLS for authentication
     const { data: user, error } = await supabaseAdmin

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
 import { createUser } from "@/lib/services/user-service"
-import { Loader2, CheckCircle, XCircle } from "lucide-react"
+import { testSupabaseConnection } from "@/lib/supabase"
+import { Loader2, CheckCircle, XCircle, Database, Wifi } from "lucide-react"
 
 interface TestResult {
   type: "client" | "provider"
@@ -17,11 +18,42 @@ interface TestResult {
 export function TestRegistration() {
   const [isLoading, setIsLoading] = useState(false)
   const [results, setResults] = useState<TestResult[]>([])
+  const [connectionStatus, setConnectionStatus] = useState<{
+    tested: boolean
+    success: boolean
+    error?: string
+  }>({ tested: false, success: false })
   const { toast } = useToast()
+
+  const testConnection = async () => {
+    console.log("🔍 Testando conexão com Supabase...")
+    const result = await testSupabaseConnection()
+    setConnectionStatus({
+      tested: true,
+      success: result.success,
+      error: result.error,
+    })
+
+    if (result.success) {
+      toast({
+        title: "Conexão OK! ✅",
+        description: "Supabase está conectado corretamente",
+      })
+    } else {
+      toast({
+        title: "Erro de Conexão ❌",
+        description: result.error || "Falha ao conectar com Supabase",
+        variant: "destructive",
+      })
+    }
+  }
 
   const runTests = async () => {
     setIsLoading(true)
     setResults([])
+
+    // Test connection first
+    await testConnection()
 
     const testUsers = [
       {
@@ -127,16 +159,43 @@ export function TestRegistration() {
         <CardDescription>Teste a funcionalidade de cadastro criando usuários de exemplo</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Button onClick={runTests} disabled={isLoading} className="w-full">
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Executando testes...
-            </>
-          ) : (
-            "Executar Testes de Cadastro"
-          )}
-        </Button>
+        {/* Connection Status */}
+        {connectionStatus.tested && (
+          <div
+            className={`flex items-center gap-3 p-3 rounded-lg border ${
+              connectionStatus.success ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
+            }`}
+          >
+            {connectionStatus.success ? (
+              <Database className="h-5 w-5 text-green-600" />
+            ) : (
+              <Wifi className="h-5 w-5 text-red-600" />
+            )}
+            <div className="flex-1">
+              <div className="font-medium">Conexão Supabase: {connectionStatus.success ? "OK" : "Falhou"}</div>
+              {!connectionStatus.success && connectionStatus.error && (
+                <div className="text-sm text-red-600">Erro: {connectionStatus.error}</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <Button onClick={testConnection} variant="outline" className="flex-1 bg-transparent">
+            <Database className="mr-2 h-4 w-4" />
+            Testar Conexão
+          </Button>
+          <Button onClick={runTests} disabled={isLoading} className="flex-1">
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Executando testes...
+              </>
+            ) : (
+              "Executar Testes de Cadastro"
+            )}
+          </Button>
+        </div>
 
         {results.length > 0 && (
           <div className="space-y-3">
@@ -171,10 +230,20 @@ export function TestRegistration() {
           <h4 className="font-medium mb-2">Instruções:</h4>
           <ol className="text-sm space-y-1 list-decimal list-inside">
             <li>Execute o SQL schema no Supabase primeiro</li>
-            <li>Configure as variáveis de ambiente</li>
-            <li>Clique em "Executar Testes" para testar o cadastro</li>
+            <li>Configure as variáveis de ambiente no Vercel</li>
+            <li>Teste a conexão primeiro</li>
+            <li>Execute os testes de cadastro</li>
             <li>Verifique os resultados abaixo</li>
           </ol>
+        </div>
+
+        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <h4 className="font-medium mb-2 text-yellow-800">Variáveis de Ambiente Necessárias:</h4>
+          <ul className="text-sm space-y-1 text-yellow-700">
+            <li>• NEXT_PUBLIC_SUPABASE_URL</li>
+            <li>• NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
+            <li>• SUPABASE_SERVICE_ROLE_KEY</li>
+          </ul>
         </div>
       </CardContent>
     </Card>

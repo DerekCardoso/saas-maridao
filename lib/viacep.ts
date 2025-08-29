@@ -9,54 +9,40 @@ export interface Address {
   gia?: string
   ddd?: string
   siafi?: string
-}
-
-export interface ViaCepResponse extends Address {
   erro?: boolean
 }
 
-export async function fetchAddressByCep(cep: string): Promise<Address | null> {
+export async function getCepData(cep: string): Promise<Address | null> {
   try {
-    // Remove any non-numeric characters
+    // Remove any non-numeric characters from CEP
     const cleanCep = cep.replace(/\D/g, "")
 
-    // Validate CEP format (8 digits)
     if (cleanCep.length !== 8) {
       throw new Error("CEP deve ter 8 dígitos")
     }
 
-    console.log("🔍 Buscando CEP:", cleanCep)
-
     const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
 
     if (!response.ok) {
-      throw new Error(`Erro na requisição: ${response.status}`)
+      throw new Error("Erro ao consultar CEP")
     }
 
-    const data: ViaCepResponse = await response.json()
+    const data: Address = await response.json()
 
     if (data.erro) {
       throw new Error("CEP não encontrado")
     }
 
-    console.log("✅ CEP encontrado:", data)
-
-    return {
-      cep: data.cep,
-      logradouro: data.logradouro,
-      complemento: data.complemento,
-      bairro: data.bairro,
-      localidade: data.localidade,
-      uf: data.uf,
-      ibge: data.ibge,
-      gia: data.gia,
-      ddd: data.ddd,
-      siafi: data.siafi,
-    }
+    return data
   } catch (error) {
-    console.error("❌ Erro ao buscar CEP:", error)
-    throw error
+    console.error("Erro ao buscar CEP:", error)
+    return null
   }
+}
+
+export function validateCep(cep: string): boolean {
+  const cleanCep = cep.replace(/\D/g, "")
+  return cleanCep.length === 8
 }
 
 export function formatCep(cep: string): string {
@@ -64,10 +50,5 @@ export function formatCep(cep: string): string {
   if (cleanCep.length === 8) {
     return `${cleanCep.slice(0, 5)}-${cleanCep.slice(5)}`
   }
-  return cleanCep
-}
-
-export function validateCep(cep: string): boolean {
-  const cleanCep = cep.replace(/\D/g, "")
-  return cleanCep.length === 8 && /^\d{8}$/.test(cleanCep)
+  return cep
 }
