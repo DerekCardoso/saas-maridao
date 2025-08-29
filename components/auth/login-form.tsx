@@ -1,19 +1,19 @@
 "use client"
 
 import type React from "react"
-
+import { createClientComponentClient } from "@supabase/supabase-js"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import * as z from "zod"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
-import { validateUserCredentials } from "@/lib/services/user-service"
 
+const supabase = createClientComponentClient()
 const formSchema = z.object({
   email: z.string().email({
     message: "Por favor, insira um email válido.",
@@ -60,17 +60,29 @@ export function LoginForm() {
 
     setIsLoading(true)
     try {
-      const user = await validateUserCredentials(email, password)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      const user = data.user
 
       if (user) {
         localStorage.setItem("maridao_user", JSON.stringify(user))
 
         toast({
           title: "Login realizado com sucesso!",
-          description: `Bem-vindo(a) de volta, ${user.name}!`,
+          description: `Bem-vindo(a) de volta, ${user.email}!`,
         })
 
-        switch (user.userType) {
+        // Assuming userType is stored in the user metadata
+        const userType = user.user_metadata.userType || "client"
+
+        switch (userType) {
           case "admin":
             router.push("/admin")
             break

@@ -3,20 +3,28 @@ import { getSupabaseAdmin } from "@/lib/supabase"
 
 export async function GET() {
   try {
-    const supabase = getSupabaseAdmin()
+    // Test admin connection
+    const supabaseAdmin = getSupabaseAdmin()
 
-    // Test connection by counting users
-    const { count, error } = await supabase.from("users").select("*", { count: "exact", head: true })
+    // Simple query to test connectivity
+    const { data, error, count } = await supabaseAdmin.from("users").select("*", { count: "exact", head: true })
 
     if (error) {
-      console.error("Supabase health check failed:", error)
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
+      console.error("Supabase health check error:", error)
+      return NextResponse.json(
+        {
+          ok: false,
+          error: error.message,
+          timestamp: new Date().toISOString(),
+        },
+        { status: 500 },
+      )
     }
 
     return NextResponse.json({
       ok: true,
-      timestamp: new Date().toISOString(),
       usersCount: count,
+      timestamp: new Date().toISOString(),
       environment: {
         hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
         hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -24,7 +32,14 @@ export async function GET() {
       },
     })
   } catch (error) {
-    console.error("Supabase health check error:", error)
-    return NextResponse.json({ ok: false, error: "Internal server error" }, { status: 500 })
+    console.error("Supabase health check failed:", error)
+    return NextResponse.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString(),
+      },
+      { status: 500 },
+    )
   }
 }
