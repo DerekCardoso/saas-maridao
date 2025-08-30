@@ -1,7 +1,5 @@
-import { compare } from "bcrypt"
-import { supabase } from "../supabase"
-import type { Address } from "../viacep"
-import { createUser as createUserAuth } from "@/lib/auth"
+import bcrypt from "bcryptjs"
+import { getSupabaseConfigStatus, isSupabaseConfigured } from "@/lib/supabase"
 
 interface SupabaseProvider {
   is_premium: boolean
@@ -26,17 +24,18 @@ interface SupabaseUser {
   phone: string | null
   is_admin: boolean
   password: string
+  user_type: "client" | "provider" | "admin"
   providers?: SupabaseProvider[]
   clients?: any[]
   addresses?: SupabaseAddress[]
 }
 
 export interface CreateUserData {
-  name: string
   email: string
-  password: string
+  name: string
   phone?: string
-  userType: "client" | "provider"
+  password: string
+  userType: "client" | "provider" | "admin"
   address?: {
     street: string
     number?: string
@@ -46,152 +45,294 @@ export interface CreateUserData {
     state: string
     cep: string
   }
-  isPremium?: boolean
-  specialties?: string[]
-  bio?: string
-  experienceYears?: number
-}
-
-export interface UserResponse {
-  id: string
-  name: string
-  email: string
-  phone: string
-  userType: "client" | "provider" | "admin"
-  address?: Address & { number?: string }
-  isPremium?: boolean
-  specialties?: string[]
-  bio?: string
-}
-
-export async function createUser(userData: CreateUserData): Promise<UserResponse> {
-  try {
-    console.log("🎯 Serviço: Iniciando criação de usuário", userData.email)
-
-    const user = await createUserAuth({
-      email: userData.email,
-      name: userData.name,
-      phone: userData.phone,
-      userType: userData.userType,
-      password: userData.password,
-      address: userData.address,
-      providerData:
-        userData.userType === "provider"
-          ? {
-              bio: userData.bio,
-              experienceYears: userData.experienceYears,
-              isPremium: userData.isPremium,
-              specialties: userData.specialties,
-            }
-          : undefined,
-    })
-
-    if (!user) {
-      throw new Error("Falha ao criar usuário - resposta vazia")
-    }
-
-    console.log("🎉 Serviço: Usuário criado com sucesso", user.id)
-
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: userData.phone || "",
-      userType: user.userType,
-      isPremium: userData.isPremium,
-      specialties: userData.specialties,
-      bio: userData.bio,
-    }
-  } catch (error) {
-    console.error("💥 Erro no serviço de criação de usuário:", error)
-
-    // Se o erro já tem uma mensagem específica, usar ela
-    if (error instanceof Error) {
-      throw error
-    }
-
-    // Caso contrário, criar uma mensagem genérica
-    throw new Error("Erro inesperado no serviço. Tente novamente.")
+  providerData?: {
+    bio?: string
+    experienceYears?: number
+    isPremium?: boolean
+    specialties?: string[]
   }
 }
 
-export async function validateUserCredentials(email: string, password: string): Promise<UserResponse | null> {
+export interface LoginData {
+  email: string
+  password: string
+}
+
+export interface User {
+  id: string
+  email: string
+  name: string
+  phone?: string
+  userType: "client" | "provider" | "admin"
+  isAdmin: boolean
+}
+
+// Safe function to get supabase admin with error handling
+function getSupabaseAdminSafe() {
+  // Check configuration first
+  if (!isSupabaseConfigured()) {
+    const configStatus = getSupabaseConfigStatus()
+    throw new Error(`Database não configurado. Variáveis ausentes: ${configStatus.missingVars.join(", ")}`)
+  }
+
+  try {
+    // Dynamic import to avoid initialization errors
+    const { getSupabaseAdmin } = require("@/lib/supabase")
+    return getSupabaseAdmin()
+  } catch (error) {
+    console.error("❌ Error getting Supabase admin client:", error)
+    throw new Error("Erro na conexão com o banco de dados. Verifique as configurações.")
+  }
+}
+
+export async function createUser(userData: CreateUserData): Promise<{ success: boolean; user?: User; error?: string }> {
+  try {
+    console.log("🔄 Iniciando criação de usuário:", userData.email)
+
+    // Check if database is configured
+    if (!isSupabaseConfigured()) {
+      const configStatus = getSupabaseConfigStatus()
+      return {
+        success: false,
+        error: `Sistema não configurado. Configure as variáveis de ambiente: ${configStatus.missingVars.join(", ")}`,
+      }
+    }
+
+    const supabase = getSupabaseAdminSafe()
+
+    // Check if email already exists
+    console.log("🔍 Verificando se email já existe...")
+    const { data: existingUser, error: checkError } = await supabase
+      .from("users")
+      .select("email")
+      .eq("email", userData.email)
+      .single()
+
+    if (checkError && checkError.code !== "PGRST116") {
+      console.error("❌ Erro ao verificar email existente:", checkError)
+      throw new Error(`Erro ao verificar email: ${checkError.message}`)
+    }
+
+    if (existingUser) {
+      console.log("⚠️ Email já existe")
+      return { success: false, error: "Email já está em uso" }
+    }
+
+    // Hash password
+    console.log("🔐 Gerando hash da senha...")
+    const hashedPassword = await bcrypt.hash(userData.password, 10)
+
+    // Create user
+    console.log("👤 Criando usuário...")
+    const { data: newUser, error: userError } = await supabase
+      .from("users")
+      .insert({
+        email: userData.email,
+        name: userData.name,
+        phone: userData.phone,
+        user_type: userData.userType,
+        is_admin: userData.userType === "admin",
+        password: hashedPassword,
+      })
+      .select()
+      .single()
+
+    if (userError) {
+      console.error("❌ Erro ao criar usuário:", userError)
+      throw new Error(`Erro ao criar usuário: ${userError.message}`)
+    }
+
+    console.log("✅ Usuário criado:", newUser.id)
+
+    // Create client or provider record
+    if (userData.userType === "client") {
+      console.log("👥 Criando registro de cliente...")
+      const { error: clientError } = await supabase.from("clients").insert({ user_id: newUser.id })
+
+      if (clientError) {
+        console.error("❌ Erro ao criar cliente:", clientError)
+        throw new Error(`Erro ao criar cliente: ${clientError.message}`)
+      }
+    } else if (userData.userType === "provider") {
+      console.log("🔧 Criando registro de prestador...")
+      const { data: newProvider, error: providerError } = await supabase
+        .from("providers")
+        .insert({
+          user_id: newUser.id,
+          bio: userData.providerData?.bio,
+          experience_years: userData.providerData?.experienceYears,
+          is_premium: userData.providerData?.isPremium || false,
+        })
+        .select()
+        .single()
+
+      if (providerError) {
+        console.error("❌ Erro ao criar prestador:", providerError)
+        throw new Error(`Erro ao criar prestador: ${providerError.message}`)
+      }
+
+      // Add specialties if provided
+      if (userData.providerData?.specialties && userData.providerData.specialties.length > 0) {
+        console.log("🎯 Adicionando especialidades...")
+        const specialties = userData.providerData.specialties.map((name) => ({
+          provider_id: newProvider.id,
+          name,
+        }))
+
+        const { error: specialtiesError } = await supabase.from("provider_specialties").insert(specialties)
+
+        if (specialtiesError) {
+          console.error("❌ Erro ao criar especialidades:", specialtiesError)
+          // Don't throw here, specialties are optional
+        }
+      }
+    }
+
+    // Add address if provided
+    if (userData.address) {
+      console.log("🏠 Adicionando endereço...")
+      const { error: addressError } = await supabase.from("addresses").insert({
+        user_id: newUser.id,
+        street: userData.address.street,
+        number: userData.address.number,
+        complement: userData.address.complement,
+        neighborhood: userData.address.neighborhood,
+        city: userData.address.city,
+        state: userData.address.state,
+        cep: userData.address.cep,
+        is_primary: true,
+      })
+
+      if (addressError) {
+        console.error("❌ Erro ao criar endereço:", addressError)
+        // Don't throw here, address is optional
+      }
+    }
+
+    console.log("🎉 Usuário criado com sucesso!")
+
+    return {
+      success: true,
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        phone: newUser.phone,
+        userType: newUser.user_type as "client" | "provider" | "admin",
+        isAdmin: newUser.is_admin,
+      },
+    }
+  } catch (error) {
+    console.error("💥 Erro na criação do usuário:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido",
+    }
+  }
+}
+
+export async function loginUser(loginData: LoginData): Promise<{ success: boolean; user?: User; error?: string }> {
+  try {
+    console.log("🔄 Iniciando login:", loginData.email)
+
+    // Check if database is configured
+    if (!isSupabaseConfigured()) {
+      const configStatus = getSupabaseConfigStatus()
+      return {
+        success: false,
+        error: `Sistema não configurado. Configure as variáveis de ambiente: ${configStatus.missingVars.join(", ")}`,
+      }
+    }
+
+    const supabase = getSupabaseAdminSafe()
+
+    // Find user by email
+    console.log("🔍 Buscando usuário...")
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", loginData.email)
+      .single()
+
+    if (userError || !user) {
+      console.log("❌ Usuário não encontrado")
+      return { success: false, error: "Email ou senha incorretos" }
+    }
+
+    // Verify password
+    console.log("🔐 Verificando senha...")
+    const isValidPassword = await bcrypt.compare(loginData.password, user.password)
+
+    if (!isValidPassword) {
+      console.log("❌ Senha incorreta")
+      return { success: false, error: "Email ou senha incorretos" }
+    }
+
+    console.log("✅ Login realizado com sucesso!")
+
+    return {
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        phone: user.phone,
+        userType: user.user_type as "client" | "provider" | "admin",
+        isAdmin: user.is_admin,
+      },
+    }
+  } catch (error) {
+    console.error("💥 Erro no login:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido",
+    }
+  }
+}
+
+export async function validateUserCredentials(email: string, password: string): Promise<any | null> {
   try {
     console.log("🔍 Validando credenciais para:", email)
 
-    const { data: user, error } = await supabase
-      .from("users")
-      .select(`
-        *,
-        clients (*),
-        providers (
-          *,
-          provider_specialties (*)
-        ),
-        addresses (*)
-      `)
-      .eq("email", email.toLowerCase())
-      .single()
-
-    if (error || !user) {
-      console.log("❌ Usuário não encontrado:", email)
+    // Check if database is configured
+    if (!isSupabaseConfigured()) {
+      console.log("❌ Database não configurado")
       return null
     }
 
-    const typedUser = user as unknown as SupabaseUser
+    const supabase = getSupabaseAdminSafe()
 
-    // Verificar senha
-    const isPasswordValid = await compare(password, typedUser.password)
+    // Find user by email
+    console.log("🔍 Buscando usuário...")
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email.toLowerCase())
+      .single()
 
-    if (!isPasswordValid) {
+    if (userError || !user) {
+      console.log("❌ Usuário não encontrado")
+      return null
+    }
+
+    // Verify password
+    console.log("🔐 Verificando senha...")
+    const isValidPassword = await bcrypt.compare(password, user.password)
+
+    if (!isValidPassword) {
       console.log("❌ Senha inválida para:", email)
       return null
     }
 
     console.log("✅ Credenciais válidas para:", email)
 
-    // Determinar tipo de usuário e dados específicos
-    let userType: "client" | "provider" | "admin" = "client"
-    let isPremium: boolean | undefined
-    let specialties: string[] | undefined
-    let bio: string | undefined
-
-    if (typedUser.is_admin) {
-      userType = "admin"
-    } else if (typedUser.providers && typedUser.providers.length > 0) {
-      userType = "provider"
-      const provider = typedUser.providers[0]
-      isPremium = provider.is_premium
-      specialties = provider.provider_specialties?.map((s) => s.name) || []
-      bio = provider.bio || undefined
-    } else if (typedUser.clients && typedUser.clients.length > 0) {
-      userType = "client"
-    }
-
-    // Buscar endereço
-    const address =
-      typedUser.addresses && typedUser.addresses.length > 0
-        ? {
-            logradouro: typedUser.addresses[0].street,
-            bairro: typedUser.addresses[0].neighborhood,
-            localidade: typedUser.addresses[0].city,
-            uf: typedUser.addresses[0].state,
-            cep: typedUser.addresses[0].cep,
-            number: typedUser.addresses[0].number || undefined,
-            complement: typedUser.addresses[0].complement || undefined,
-          }
-        : undefined
-
     return {
-      id: typedUser.id,
-      name: typedUser.name,
-      email: typedUser.email,
-      phone: typedUser.phone || "",
-      userType,
-      address,
-      isPremium,
-      specialties,
-      bio,
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone || "",
+      userType: user.user_type as "client" | "provider" | "admin",
+      isAdmin: user.is_admin,
     }
   } catch (error) {
     console.error("💥 Erro ao validar credenciais:", error)
@@ -199,68 +340,27 @@ export async function validateUserCredentials(email: string, password: string): 
   }
 }
 
-export async function getUserByEmailService(email: string): Promise<UserResponse | null> {
+export async function getUserByEmailService(email: string): Promise<any | null> {
   try {
-    const { data: user, error } = await supabase
-      .from("users")
-      .select(`
-        *,
-        clients (*),
-        providers (
-          *,
-          provider_specialties (*)
-        ),
-        addresses (*)
-      `)
-      .eq("email", email.toLowerCase())
-      .single()
+    if (!isSupabaseConfigured()) {
+      return null
+    }
+
+    const supabase = getSupabaseAdminSafe()
+
+    const { data: user, error } = await supabase.from("users").select("*").eq("email", email.toLowerCase()).single()
 
     if (error || !user) {
       return null
     }
 
-    const typedUser = user as unknown as SupabaseUser
-
-    let userType: "client" | "provider" | "admin" = "client"
-    let isPremium: boolean | undefined
-    let specialties: string[] | undefined
-    let bio: string | undefined
-
-    if (typedUser.is_admin) {
-      userType = "admin"
-    } else if (typedUser.providers && typedUser.providers.length > 0) {
-      userType = "provider"
-      const provider = typedUser.providers[0]
-      isPremium = provider.is_premium
-      specialties = provider.provider_specialties?.map((s) => s.name) || []
-      bio = provider.bio || undefined
-    } else if (typedUser.clients && typedUser.clients.length > 0) {
-      userType = "client"
-    }
-
-    const address =
-      typedUser.addresses && typedUser.addresses.length > 0
-        ? {
-            logradouro: typedUser.addresses[0].street,
-            bairro: typedUser.addresses[0].neighborhood,
-            localidade: typedUser.addresses[0].city,
-            uf: typedUser.addresses[0].state,
-            cep: typedUser.addresses[0].cep,
-            number: typedUser.addresses[0].number || undefined,
-            complement: typedUser.addresses[0].complement || undefined,
-          }
-        : undefined
-
     return {
-      id: typedUser.id,
-      name: typedUser.name,
-      email: typedUser.email,
-      phone: typedUser.phone || "",
-      userType,
-      address,
-      isPremium,
-      specialties,
-      bio,
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone || "",
+      userType: user.user_type as "client" | "provider" | "admin",
+      isAdmin: user.is_admin,
     }
   } catch (error) {
     console.error("💥 Erro ao buscar usuário:", error)
@@ -270,6 +370,12 @@ export async function getUserByEmailService(email: string): Promise<UserResponse
 
 export async function getAllUsersService() {
   try {
+    if (!isSupabaseConfigured()) {
+      return []
+    }
+
+    const supabase = getSupabaseAdminSafe()
+
     const { data: users, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
 
     if (error) throw error
@@ -282,6 +388,12 @@ export async function getAllUsersService() {
 
 export async function getUserService(id: string) {
   try {
+    if (!isSupabaseConfigured()) {
+      return null
+    }
+
+    const supabase = getSupabaseAdminSafe()
+
     const { data: user, error } = await supabase.from("users").select("*").eq("id", id).single()
 
     if (error) throw error
@@ -294,6 +406,12 @@ export async function getUserService(id: string) {
 
 export async function updateUserService(id: string, userData: any) {
   try {
+    if (!isSupabaseConfigured()) {
+      return null
+    }
+
+    const supabase = getSupabaseAdminSafe()
+
     const { data: user, error } = await supabase.from("users").update(userData).eq("id", id).select().single()
 
     if (error) throw error
@@ -306,6 +424,12 @@ export async function updateUserService(id: string, userData: any) {
 
 export async function deleteUserService(id: string): Promise<boolean> {
   try {
+    if (!isSupabaseConfigured()) {
+      return false
+    }
+
+    const supabase = getSupabaseAdminSafe()
+
     const { error } = await supabase.from("users").delete().eq("id", id)
 
     if (error) throw error

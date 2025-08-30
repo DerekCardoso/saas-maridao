@@ -1,23 +1,50 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { NotificationList } from "./notification-list"
 import { Badge } from "@/components/ui/badge"
-import { useRealTimeNotifications } from "@/hooks/use-real-time-notifications"
-import { useAuth } from "@/hooks/use-auth"
 
 export function NotificationBell() {
+  const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
-  const { user } = useAuth()
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useRealTimeNotifications(
-    user?.id,
-  )
+
+  // Buscar contagem de notificações não lidas
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await fetch("/api/notifications?unread=true")
+      if (response.ok) {
+        const notifications = await response.json()
+        setUnreadCount(notifications.length)
+      }
+    } catch (error) {
+      console.error("Erro ao buscar notificações:", error)
+    }
+  }
+
+  // Buscar contagem inicial e configurar polling
+  useEffect(() => {
+    fetchUnreadCount()
+
+    // Polling a cada 30 segundos
+    const interval = setInterval(fetchUnreadCount, 30000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Atualizar contagem quando o popover é fechado
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open)
+    if (!open) {
+      // Pequeno atraso para garantir que as notificações foram marcadas como lidas
+      setTimeout(fetchUnreadCount, 500)
+    }
+  }
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
@@ -32,12 +59,7 @@ export function NotificationBell() {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
-        <NotificationList
-          notifications={notifications}
-          onMarkAsRead={markAsRead}
-          onMarkAllAsRead={markAllAsRead}
-          onDelete={deleteNotification}
-        />
+        <NotificationList onNotificationRead={fetchUnreadCount} />
       </PopoverContent>
     </Popover>
   )

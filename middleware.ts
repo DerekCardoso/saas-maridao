@@ -18,15 +18,15 @@ export function middleware(request: NextRequest) {
 
   // Verificar se o usuário tem permissão para acessar a rota
   if (clientRoutes && userType && userType !== "client") {
-    return NextResponse.redirect(new URL(`/dashboard/${userType}`, request.url))
+    return NextResponse.redirect(new URL("/dashboard/" + userType, request.url))
   }
 
   if (providerRoutes && userType && userType !== "provider") {
-    return NextResponse.redirect(new URL(`/dashboard/${userType}`, request.url))
+    return NextResponse.redirect(new URL("/dashboard/" + userType, request.url))
   }
 
   if (adminRoutes && userType && userType !== "admin") {
-    return NextResponse.redirect(new URL(`/dashboard/${userType}`, request.url))
+    return NextResponse.redirect(new URL("/dashboard/" + userType, request.url))
   }
 
   return NextResponse.next()

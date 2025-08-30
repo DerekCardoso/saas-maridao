@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 import { fetchAddressByCep } from "@/lib/cep-service"
-import { useToast } from "@/components/ui/use-toast"
+import { useToastContext } from "@/contexts/toast-context"
 
 interface CepSearchProps {
   onSearch?: (cep: string, location: any) => void
@@ -20,7 +20,7 @@ export function CepSearch({ onSearch, redirectToSearch = true, className }: CepS
   const [cep, setCep] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-  const { toast } = useToast()
+  const toast = useToastContext()
 
   const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, "")
@@ -35,10 +35,9 @@ export function CepSearch({ onSearch, redirectToSearch = true, className }: CepS
 
   const handleSearch = async () => {
     if (cep.length < 8) {
-      toast({
+      toast.error({
         title: "CEP inválido",
         description: "Por favor, digite um CEP válido",
-        variant: "destructive",
       })
       return
     }
@@ -49,10 +48,9 @@ export function CepSearch({ onSearch, redirectToSearch = true, className }: CepS
       const location = await fetchAddressByCep(cep)
 
       if (!location) {
-        toast({
+        toast.warning({
           title: "CEP não encontrado",
           description: "Não foi possível encontrar o endereço para este CEP",
-          variant: "destructive",
         })
         return
       }
@@ -61,7 +59,7 @@ export function CepSearch({ onSearch, redirectToSearch = true, className }: CepS
       localStorage.setItem("userCep", cep)
       localStorage.setItem("userLocation", JSON.stringify(location))
 
-      toast({
+      toast.success({
         title: "CEP encontrado",
         description: `Endereço encontrado: ${location.street}, ${location.neighborhood}, ${location.city}/${location.state}`,
       })
@@ -74,10 +72,9 @@ export function CepSearch({ onSearch, redirectToSearch = true, className }: CepS
         router.push(`/search?cep=${cep}`)
       }
     } catch (error) {
-      toast({
+      toast.error({
         title: "Erro ao buscar CEP",
         description: "Ocorreu um erro ao buscar o endereço. Tente novamente.",
-        variant: "destructive",
       })
     } finally {
       setIsLoading(false)

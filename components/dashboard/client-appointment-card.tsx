@@ -32,7 +32,7 @@ export function ClientAppointmentCard({
       case "pending":
         return (
           <Badge variant="outline" className="border-yellow-500 text-yellow-500">
-            Aguardando Aprovação
+            Pendente
           </Badge>
         )
       case "confirmed":
@@ -110,19 +110,20 @@ export function ClientAppointmentCard({
 
         {status === "pending" && (
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/dashboard/client/appointments/${id}/cancel`}>Cancelar</Link>
+            <Button variant="outline" size="sm">
+              Cancelar
             </Button>
+            <Button size="sm">Confirmar</Button>
           </div>
         )}
 
         {status === "confirmed" && (
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/dashboard/client/appointments/${id}/reschedule`}>Reagendar</Link>
+            <Button variant="outline" size="sm">
+              Reagendar
             </Button>
-            <Button variant="destructive" size="sm" asChild>
-              <Link href={`/dashboard/client/appointments/${id}/cancel`}>Cancelar</Link>
+            <Button variant="destructive" size="sm">
+              Cancelar
             </Button>
           </div>
         )}

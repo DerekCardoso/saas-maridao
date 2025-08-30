@@ -1,253 +1,233 @@
-import { createSupabaseBrowserClient, createSupabaseServerClient, type Database } from "./supabase"
+// Este arquivo foi modificado para usar dados mockados em vez de se conectar ao banco de dados
+import {
+  users,
+  providers,
+  appointments,
+  reviews,
+  messages,
+  notifications,
+  services,
+  categories,
+  mockData, // Declare mockData here
+} from "./mock-data"
 
-const supabase = typeof window === "undefined" ? createSupabaseServerClient() : createSupabaseBrowserClient()
-
-// Tipos para facilitar o uso
-type User = Database["public"]["Tables"]["users"]["Row"]
-type Provider = Database["public"]["Tables"]["providers"]["Row"]
-type Client = Database["public"]["Tables"]["clients"]["Row"]
-type Appointment = Database["public"]["Tables"]["appointments"]["Row"]
-type Review = Database["public"]["Tables"]["reviews"]["Row"]
-type Message = Database["public"]["Tables"]["messages"]["Row"]
-type Notification = Database["public"]["Tables"]["notifications"]["Row"]
-type Address = Database["public"]["Tables"]["addresses"]["Row"]
-type ProviderSpecialty = Database["public"]["Tables"]["provider_specialties"]["Row"]
-
-// Interface para simular o Prisma Client (mantendo compatibilidade)
+// Interface para simular o Prisma Client
 export const prisma = {
   user: {
     findUnique: async ({ where }: { where: any }) => {
-      let query = supabase.from("users").select("*")
-
       if (where.id) {
-        query = query.eq("id", where.id)
+        return users.find((user) => user.id === where.id) || null
       }
       if (where.email) {
-        query = query.eq("email", where.email)
+        return users.find((user) => user.email === where.email) || null
       }
-
-      const { data, error } = await query.single()
-      if (error && error.code !== "PGRST116") throw error
-      return data
+      return null
     },
-
     findMany: async ({ where, include, take, skip }: { where?: any; include?: any; take?: number; skip?: number }) => {
-      let query = supabase.from("users").select("*")
+      let filteredUsers = [...users]
 
       if (where) {
         // Implementar filtros conforme necessário
-      }
-
-      if (take) {
-        query = query.limit(take)
       }
 
       if (skip) {
-        query = query.range(skip, skip + (take || 10) - 1)
+        filteredUsers = filteredUsers.slice(skip)
       }
 
-      const { data, error } = await query
-      if (error) throw error
+      if (take) {
+        filteredUsers = filteredUsers.slice(0, take)
+      }
 
       // Adicionar relacionamentos se solicitado
-      if (include && data) {
-        for (const user of data) {
+      if (include) {
+        filteredUsers = filteredUsers.map((user) => {
+          const result: any = { ...user }
+
           if (include.client) {
-            const { data: client } = await supabase.from("clients").select("*").eq("user_id", user.id).single()
-            user.client = client
+            result.client = messages.find((message) => message.userId === user.id) || null
           }
 
           if (include.provider) {
-            const { data: provider } = await supabase.from("providers").select("*").eq("user_id", user.id).single()
-            user.provider = provider
+            const provider = providers.find((provider) => provider.userId === user.id) || null
 
             if (provider && include.provider.include?.specialties) {
-              const { data: specialties } = await supabase
-                .from("provider_specialties")
-                .select("*")
-                .eq("provider_id", provider.id)
-              provider.specialties = specialties || []
+              provider.specialties = mockData.providerSpecialties.filter(
+                (specialty) => specialty.providerId === provider.id,
+              )
             }
+
+            result.provider = provider
           }
 
           if (include.addresses) {
-            const { data: addresses } = await supabase.from("addresses").select("*").eq("user_id", user.id)
-            user.addresses = addresses || []
+            result.addresses = mockData.addresses.filter((address) => address.userId === user.id)
           }
-        }
+
+          return result
+        })
       }
 
-      return data || []
+      return filteredUsers
     },
-
     create: async ({ data }: { data: any }) => {
-      const { data: newUser, error } = await supabase.from("users").insert([data]).select().single()
-      if (error) throw error
+      const newId = `user-${users.length + 1}`
+      const newUser = {
+        id: newId,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      users.push(newUser)
       return newUser
     },
-
     update: async ({ where, data }: { where: any; data: any }) => {
-      const { data: updatedUser, error } = await supabase
-        .from("users")
-        .update(data)
-        .eq("id", where.id)
-        .select()
-        .single()
-      if (error) throw error
+      const userIndex = users.findIndex((user) => user.id === where.id)
+      if (userIndex === -1) {
+        throw new Error("User not found")
+      }
+      const updatedUser = {
+        ...users[userIndex],
+        ...data,
+        updatedAt: new Date(),
+      }
+      users[userIndex] = updatedUser
       return updatedUser
     },
-
     delete: async ({ where }: { where: any }) => {
-      const { data: deletedUser, error } = await supabase.from("users").delete().eq("id", where.id).select().single()
-      if (error) throw error
+      const userIndex = users.findIndex((user) => user.id === where.id)
+      if (userIndex === -1) {
+        throw new Error("User not found")
+      }
+      const deletedUser = users[userIndex]
+      users.splice(userIndex, 1)
       return deletedUser
     },
-
     count: async ({ where }: { where?: any }) => {
-      const query = supabase.from("users").select("*", { count: "exact", head: true })
-
+      const count = users.length
       if (where) {
         // Implementar filtros conforme necessário
       }
-
-      const { count, error } = await query
-      if (error) throw error
-      return count || 0
+      return count
     },
   },
-
   client: {
     findUnique: async ({ where }: { where: any }) => {
-      const { data, error } = await supabase.from("clients").select("*").eq("id", where.id).single()
-      if (error && error.code !== "PGRST116") throw error
-      return data
+      return messages.find((message) => message.id === where.id) || null
     },
-
     findFirst: async ({ where }: { where: any }) => {
-      let query = supabase.from("clients").select("*")
-
       if (where.user?.id) {
-        query = query.eq("user_id", where.user.id)
+        return (
+          messages.find((message) => {
+            const user = users.find((u) => u.id === message.userId)
+            return user && user.id === where.user.id
+          }) || null
+        )
       }
-
-      const { data, error } = await query.single()
-      if (error && error.code !== "PGRST116") throw error
-      return data
+      return null
     },
-
     findMany: async ({ where, include }: { where?: any; include?: any }) => {
-      const query = supabase.from("clients").select("*")
+      let filteredClients = [...messages]
 
       if (where) {
         // Implementar filtros conforme necessário
       }
 
-      const { data, error } = await query
-      if (error) throw error
-
       // Adicionar relacionamentos se solicitado
-      if (include && data) {
-        for (const client of data) {
+      if (include) {
+        filteredClients = filteredClients.map((client) => {
+          const result: any = { ...client }
+
           if (include.user) {
-            const { data: user } = await supabase.from("users").select("*").eq("id", client.user_id).single()
-            client.user = user
+            const user = users.find((user) => user.id === client.userId) || null
+            result.user = user
           }
-        }
+
+          return result
+        })
       }
 
-      return data || []
+      return filteredClients
     },
-
     create: async ({ data }: { data: any }) => {
-      const { data: newClient, error } = await supabase.from("clients").insert([data]).select().single()
-      if (error) throw error
+      const newId = `client-${messages.length + 1}`
+      const newClient = {
+        id: newId,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      messages.push(newClient)
       return newClient
     },
   },
-
   provider: {
     findUnique: async ({ where, include }: { where: any; include?: any }) => {
-      const { data: provider, error } = await supabase.from("providers").select("*").eq("id", where.id).single()
-      if (error && error.code !== "PGRST116") throw error
+      const provider = providers.find((provider) => provider.id === where.id) || null
 
       if (!provider || !include) {
         return provider
       }
 
+      const result: any = { ...provider }
+
       if (include.user) {
-        const { data: user } = await supabase.from("users").select("*").eq("id", provider.user_id).single()
-        provider.user = user
+        const user = users.find((user) => user.id === provider.userId) || null
 
         if (user && include.user.select?.addresses) {
-          const { data: addresses } = await supabase.from("addresses").select("*").eq("user_id", user.id)
-          user.addresses = addresses || []
+          user.addresses = mockData.addresses.filter((address) => address.userId === user.id)
         }
+
+        result.user = user
       }
 
       if (include.specialties) {
-        const { data: specialties } = await supabase
-          .from("provider_specialties")
-          .select("*")
-          .eq("provider_id", provider.id)
-        provider.specialties = specialties || []
+        result.specialties = mockData.providerSpecialties.filter((specialty) => specialty.providerId === provider.id)
       }
 
       if (include.reviews) {
-        let query = supabase.from("reviews").select("*").eq("provider_id", provider.id)
+        let reviews = mockData.reviews.filter((review) => review.providerId === provider.id)
 
-        if (include.reviews.take) {
-          query = query.limit(include.reviews.take)
-        }
+        if (include.reviews.select) {
+          reviews = reviews.map((review) => {
+            const result: any = {}
 
-        if (include.reviews.orderBy?.createdAt === "desc") {
-          query = query.order("created_at", { ascending: false })
-        }
+            if (include.reviews.select.id) result.id = review.id
+            if (include.reviews.select.rating) result.rating = review.rating
+            if (include.reviews.select.comment) result.comment = review.comment
+            if (include.reviews.select.createdAt) result.createdAt = review.createdAt
 
-        const { data: reviews } = await query
-        provider.reviews = reviews || []
-
-        if (include.reviews.select && reviews) {
-          for (const review of reviews) {
             if (include.reviews.select.client) {
-              const { data: client } = await supabase.from("clients").select("*").eq("id", review.client_id).single()
+              const client = messages.find((client) => client.id === review.clientId)
               if (client && include.reviews.select.client.select?.user) {
-                const { data: user } = await supabase.from("users").select("*").eq("id", client.user_id).single()
-                review.client = {
+                const user = users.find((user) => user.id === client.userId)
+                result.client = {
                   user: {
                     name: user?.name,
                   },
                 }
               }
             }
-          }
+
+            return result
+          })
         }
+
+        result.reviews = reviews
       }
 
-      if (include._count) {
-        const { count } = await supabase
-          .from("reviews")
-          .select("*", { count: "exact", head: true })
-          .eq("provider_id", provider.id)
-        provider._count = {
-          reviews: count || 0,
-        }
-      }
-
-      return provider
+      return result
     },
-
     findFirst: async ({ where }: { where: any }) => {
-      let query = supabase.from("providers").select("*")
-
       if (where.user?.id) {
-        query = query.eq("user_id", where.user.id)
+        return (
+          providers.find((provider) => {
+            const user = users.find((u) => u.id === provider.userId)
+            return user && user.id === where.user.id
+          }) || null
+        )
       }
-
-      const { data, error } = await query.single()
-      if (error && error.code !== "PGRST116") throw error
-      return data
+      return null
     },
-
     findMany: async ({
       where,
       include,
@@ -255,15 +235,23 @@ export const prisma = {
       skip,
       orderBy,
     }: { where?: any; include?: any; take?: number; skip?: number; orderBy?: any }) => {
-      let query = supabase.from("providers").select("*")
+      let filteredProviders = [...providers]
 
       if (where) {
-        if (where.rating?.gte) {
-          query = query.gte("rating", where.rating.gte)
+        if (where.specialties?.some?.name?.contains) {
+          const searchTerm = where.specialties.some.name.contains.toLowerCase()
+          filteredProviders = filteredProviders.filter((provider) => {
+            const specialties = mockData.providerSpecialties.filter((specialty) => specialty.providerId === provider.id)
+            return specialties.some((specialty) => specialty.name.toLowerCase().includes(searchTerm))
+          })
         }
 
-        if (where.is_premium !== undefined) {
-          query = query.eq("is_premium", where.is_premium)
+        if (where.rating?.gte) {
+          filteredProviders = filteredProviders.filter((provider) => provider.rating >= where.rating.gte)
+        }
+
+        if (where.isPremium !== undefined) {
+          filteredProviders = filteredProviders.filter((provider) => provider.isPremium === where.isPremium)
         }
       }
 
@@ -271,441 +259,659 @@ export const prisma = {
       if (orderBy) {
         if (Array.isArray(orderBy)) {
           orderBy.forEach((order) => {
-            if (order.is_premium === "desc") {
-              query = query.order("is_premium", { ascending: false })
+            if (order.isPremium === "desc") {
+              filteredProviders.sort((a, b) => (b.isPremium ? 1 : 0) - (a.isPremium ? 1 : 0))
             } else if (order.rating === "desc") {
-              query = query.order("rating", { ascending: false })
+              filteredProviders.sort((a, b) => b.rating - a.rating)
             }
           })
         }
       }
 
-      if (take) {
-        query = query.limit(take)
-      }
-
       if (skip) {
-        query = query.range(skip, skip + (take || 10) - 1)
+        filteredProviders = filteredProviders.slice(skip)
       }
 
-      const { data, error } = await query
-      if (error) throw error
+      if (take) {
+        filteredProviders = filteredProviders.slice(0, take)
+      }
 
       // Adicionar relacionamentos se solicitado
-      if (include && data) {
-        for (const provider of data) {
+      if (include) {
+        filteredProviders = filteredProviders.map((provider) => {
+          const result: any = { ...provider }
+
           if (include.user) {
-            const { data: user } = await supabase.from("users").select("*").eq("id", provider.user_id).single()
-            provider.user = user
+            const user = users.find((user) => user.id === provider.userId) || null
 
             if (user && include.user.select?.addresses) {
-              const { data: addresses } = await supabase.from("addresses").select("*").eq("user_id", user.id)
-              user.addresses = addresses || []
+              user.addresses = mockData.addresses.filter((address) => address.userId === user.id)
             }
+
+            result.user = user
           }
 
           if (include.specialties) {
-            const { data: specialties } = await supabase
-              .from("provider_specialties")
-              .select("*")
-              .eq("provider_id", provider.id)
-            provider.specialties = specialties || []
+            result.specialties = mockData.providerSpecialties.filter(
+              (specialty) => specialty.providerId === provider.id,
+            )
           }
 
           if (include.reviews) {
-            let reviewQuery = supabase.from("reviews").select("*").eq("provider_id", provider.id)
+            let reviews = mockData.reviews.filter((review) => review.providerId === provider.id)
+
+            if (include.reviews.select) {
+              reviews = reviews.map((review) => {
+                const result: any = {}
+
+                if (include.reviews.select.id) result.id = review.id
+                if (include.reviews.select.rating) result.rating = review.rating
+                if (include.reviews.select.comment) result.comment = review.comment
+                if (include.reviews.select.createdAt) result.createdAt = review.createdAt
+
+                if (include.reviews.select.client) {
+                  const client = messages.find((client) => client.id === review.clientId)
+                  if (client && include.reviews.select.client.select?.user) {
+                    const user = users.find((user) => user.id === client.userId)
+                    result.client = {
+                      user: {
+                        name: user?.name,
+                      },
+                    }
+                  }
+                }
+
+                return result
+              })
+            }
 
             if (include.reviews.take) {
-              reviewQuery = reviewQuery.limit(include.reviews.take)
+              reviews = reviews.slice(0, include.reviews.take)
             }
 
-            if (include.reviews.orderBy?.created_at === "desc") {
-              reviewQuery = reviewQuery.order("created_at", { ascending: false })
+            if (include.reviews.orderBy?.createdAt === "desc") {
+              reviews.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
             }
 
-            const { data: reviews } = await reviewQuery
-            provider.reviews = reviews || []
+            result.reviews = reviews
           }
 
           if (include._count) {
-            const { count } = await supabase
-              .from("reviews")
-              .select("*", { count: "exact", head: true })
-              .eq("provider_id", provider.id)
-            provider._count = {
-              reviews: count || 0,
+            result._count = {
+              reviews: mockData.reviews.filter((review) => review.providerId === provider.id).length,
             }
           }
-        }
+
+          return result
+        })
       }
 
-      return data || []
+      return filteredProviders
     },
-
     count: async ({ where }: { where?: any }) => {
-      let query = supabase.from("providers").select("*", { count: "exact", head: true })
+      let count = providers.length
 
       if (where) {
-        if (where.rating?.gte) {
-          query = query.gte("rating", where.rating.gte)
+        let filteredProviders = [...providers]
+
+        if (where.specialties?.some?.name?.contains) {
+          const searchTerm = where.specialties.some.name.contains.toLowerCase()
+          filteredProviders = filteredProviders.filter((provider) => {
+            const specialties = mockData.providerSpecialties.filter((specialty) => specialty.providerId === provider.id)
+            return specialties.some((specialty) => specialty.name.toLowerCase().includes(searchTerm))
+          })
         }
 
-        if (where.is_premium !== undefined) {
-          query = query.eq("is_premium", where.is_premium)
+        if (where.rating?.gte) {
+          filteredProviders = filteredProviders.filter((provider) => provider.rating >= where.rating.gte)
         }
+
+        if (where.isPremium !== undefined) {
+          filteredProviders = filteredProviders.filter((provider) => provider.isPremium === where.isPremium)
+        }
+
+        count = filteredProviders.length
       }
 
-      const { count, error } = await query
-      if (error) throw error
-      return count || 0
+      return count
     },
-
     update: async ({ where, data }: { where: any; data: any }) => {
-      const { data: updatedProvider, error } = await supabase
-        .from("providers")
-        .update(data)
-        .eq("id", where.id)
-        .select()
-        .single()
-      if (error) throw error
+      const providerIndex = providers.findIndex((provider) => provider.id === where.id)
+      if (providerIndex === -1) {
+        throw new Error("Provider not found")
+      }
+      const updatedProvider = {
+        ...providers[providerIndex],
+        ...data,
+        updatedAt: new Date(),
+      }
+      providers[providerIndex] = updatedProvider
       return updatedProvider
     },
   },
-
   address: {
     create: async ({ data }: { data: any }) => {
-      const { data: newAddress, error } = await supabase.from("addresses").insert([data]).select().single()
-      if (error) throw error
+      const newId = `address-${mockData.addresses.length + 1}`
+      const newAddress = {
+        id: newId,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      mockData.addresses.push(newAddress)
       return newAddress
     },
-
     findFirst: async ({ where }: { where: any }) => {
-      let query = supabase.from("addresses").select("*")
-
-      if (where.user_id) {
-        query = query.eq("user_id", where.user_id)
+      if (where.userId) {
+        return mockData.addresses.find((address) => address.userId === where.userId) || null
       }
-
-      const { data, error } = await query.single()
-      if (error && error.code !== "PGRST116") throw error
-      return data
+      return null
     },
-
     update: async ({ where, data }: { where: any; data: any }) => {
-      const { data: updatedAddress, error } = await supabase
-        .from("addresses")
-        .update(data)
-        .eq("id", where.id)
-        .select()
-        .single()
-      if (error) throw error
+      const addressIndex = mockData.addresses.findIndex((address) => address.id === where.id)
+      if (addressIndex === -1) {
+        throw new Error("Address not found")
+      }
+      const updatedAddress = {
+        ...mockData.addresses[addressIndex],
+        ...data,
+        updatedAt: new Date(),
+      }
+      mockData.addresses[addressIndex] = updatedAddress
       return updatedAddress
     },
   },
-
   providerSpecialty: {
     create: async ({ data }: { data: any }) => {
-      const { data: newSpecialty, error } = await supabase.from("provider_specialties").insert([data]).select().single()
-      if (error) throw error
+      const newId = `specialty-${mockData.providerSpecialties.length + 1}`
+      const newSpecialty = {
+        id: newId,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      mockData.providerSpecialties.push(newSpecialty)
       return newSpecialty
     },
-
     deleteMany: async ({ where }: { where: any }) => {
-      const { data, error } = await supabase
-        .from("provider_specialties")
-        .delete()
-        .eq("provider_id", where.provider_id)
-        .select()
-      if (error) throw error
-      return { count: data?.length || 0 }
+      if (where.providerId) {
+        const initialLength = mockData.providerSpecialties.length
+        mockData.providerSpecialties = mockData.providerSpecialties.filter(
+          (specialty) => specialty.providerId !== where.providerId,
+        )
+        return { count: initialLength - mockData.providerSpecialties.length }
+      }
+      return { count: 0 }
     },
   },
-
   appointment: {
     findUnique: async ({ where, include }: { where: any; include?: any }) => {
-      const { data, error } = await supabase.from("appointments").select("*").eq("id", where.id).single()
-      if (error && error.code !== "PGRST116") throw error
-      return data
-    },
+      const appointment = appointments.find((appointment) => appointment.id === where.id) || null
 
+      if (!appointment || !include) {
+        return appointment
+      }
+
+      return appointment
+    },
     findMany: async ({ where, include, orderBy }: { where?: any; include?: any; orderBy?: any }) => {
-      let query = supabase.from("appointments").select("*")
+      let filteredAppointments = [...appointments]
 
       if (where) {
-        if (where.client_id) {
-          query = query.eq("client_id", where.client_id)
+        if (where.clientId) {
+          filteredAppointments = filteredAppointments.filter((appointment) => appointment.clientId === where.clientId)
         }
 
-        if (where.provider_id) {
-          query = query.eq("provider_id", where.provider_id)
+        if (where.providerId) {
+          filteredAppointments = filteredAppointments.filter(
+            (appointment) => appointment.providerId === where.providerId,
+          )
         }
 
         if (where.status) {
-          query = query.eq("status", where.status)
+          filteredAppointments = filteredAppointments.filter((appointment) => appointment.status === where.status)
         }
 
         if (where.date?.gte) {
-          query = query.gte("date", where.date.gte.toISOString().split("T")[0])
+          filteredAppointments = filteredAppointments.filter(
+            (appointment) => appointment.date.getTime() >= where.date.gte.getTime(),
+          )
         }
 
         if (where.date?.lt) {
-          query = query.lt("date", where.date.lt.toISOString().split("T")[0])
+          filteredAppointments = filteredAppointments.filter(
+            (appointment) => appointment.date.getTime() < where.date.lt.getTime(),
+          )
         }
       }
 
       // Ordenação
       if (orderBy) {
         if (orderBy.date === "desc") {
-          query = query.order("date", { ascending: false })
+          filteredAppointments.sort((a, b) => b.date.getTime() - a.date.getTime())
         } else if (orderBy.date === "asc") {
-          query = query.order("date", { ascending: true })
+          filteredAppointments.sort((a, b) => a.date.getTime() - b.date.getTime())
         }
       }
 
-      const { data, error } = await query
-      if (error) throw error
-      return data || []
+      return filteredAppointments
     },
-
     create: async ({ data }: { data: any }) => {
-      const { data: newAppointment, error } = await supabase.from("appointments").insert([data]).select().single()
-      if (error) throw error
+      const newId = `appointment-${appointments.length + 1}`
+      const newAppointment = {
+        id: newId,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        client: {
+          id: data.clientId,
+          userId: messages.find((message) => message.id === data.clientId)?.userId,
+          user: {
+            name: users.find((user) => user.id === messages.find((message) => message.id === data.clientId)?.userId)
+              ?.name,
+            phone: users.find((user) => user.id === messages.find((message) => message.id === data.clientId)?.userId)
+              ?.phone,
+          },
+        },
+        provider: {
+          id: data.providerId,
+          userId: providers.find((provider) => provider.id === data.providerId)?.userId,
+          user: {
+            name: users.find(
+              (user) => user.id === providers.find((provider) => provider.id === data.providerId)?.userId,
+            )?.name,
+            phone: users.find(
+              (user) => user.id === providers.find((provider) => provider.id === data.providerId)?.userId,
+            )?.phone,
+          },
+        },
+        review: null,
+      }
+      appointments.push(newAppointment)
       return newAppointment
     },
-
     update: async ({ where, data }: { where: any; data: any }) => {
-      const { data: updatedAppointment, error } = await supabase
-        .from("appointments")
-        .update(data)
-        .eq("id", where.id)
-        .select()
-        .single()
-      if (error) throw error
+      const appointmentIndex = appointments.findIndex((appointment) => appointment.id === where.id)
+      if (appointmentIndex === -1) {
+        throw new Error("Appointment not found")
+      }
+      const updatedAppointment = {
+        ...appointments[appointmentIndex],
+        ...data,
+        updatedAt: new Date(),
+      }
+      appointments[appointmentIndex] = updatedAppointment
       return updatedAppointment
     },
-
     delete: async ({ where }: { where: any }) => {
-      const { data: deletedAppointment, error } = await supabase
-        .from("appointments")
-        .delete()
-        .eq("id", where.id)
-        .select()
-        .single()
-      if (error) throw error
+      const appointmentIndex = appointments.findIndex((appointment) => appointment.id === where.id)
+      if (appointmentIndex === -1) {
+        throw new Error("Appointment not found")
+      }
+      const deletedAppointment = appointments[appointmentIndex]
+      appointments.splice(appointmentIndex, 1)
       return deletedAppointment
     },
   },
-
   review: {
     findUnique: async ({ where, include }: { where: any; include?: any }) => {
-      const { data, error } = await supabase.from("reviews").select("*").eq("id", where.id).single()
-      if (error && error.code !== "PGRST116") throw error
-      return data
-    },
+      const review = reviews.find((review) => review.id === where.id) || null
 
+      if (!review || !include) {
+        return review
+      }
+
+      return review
+    },
     findMany: async ({ where, include, orderBy }: { where?: any; include?: any; orderBy?: any }) => {
-      let query = supabase.from("reviews").select("*")
+      let filteredReviews = [...reviews]
 
       if (where) {
-        if (where.provider_id) {
-          query = query.eq("provider_id", where.provider_id)
+        if (where.providerId) {
+          filteredReviews = filteredReviews.filter((review) => review.providerId === where.providerId)
         }
 
-        if (where.client_id) {
-          query = query.eq("client_id", where.client_id)
+        if (where.clientId) {
+          filteredReviews = filteredReviews.filter((review) => review.clientId === where.clientId)
         }
       }
 
       // Ordenação
       if (orderBy) {
-        if (orderBy.created_at === "desc") {
-          query = query.order("created_at", { ascending: false })
-        } else if (orderBy.created_at === "asc") {
-          query = query.order("created_at", { ascending: true })
+        if (orderBy.createdAt === "desc") {
+          filteredReviews.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        } else if (orderBy.createdAt === "asc") {
+          filteredReviews.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
         }
       }
 
-      const { data, error } = await query
-      if (error) throw error
-      return data || []
+      return filteredReviews
     },
-
     create: async ({ data }: { data: any }) => {
-      const { data: newReview, error } = await supabase.from("reviews").insert([data]).select().single()
-      if (error) throw error
+      const newId = `review-${reviews.length + 1}`
+      const newReview = {
+        id: newId,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        client: {
+          id: data.clientId,
+          user: {
+            name: users.find((user) => user.id === messages.find((message) => message.id === data.clientId)?.userId)
+              ?.name,
+          },
+        },
+        appointment: {
+          service: appointments.find((appointment) => appointment.id === data.appointmentId)?.service,
+        },
+      }
+      reviews.push(newReview)
+
+      // Atualizar o appointment para incluir a review
+      const appointmentIndex = appointments.findIndex((appointment) => appointment.id === data.appointmentId)
+      if (appointmentIndex !== -1) {
+        appointments[appointmentIndex].review = {
+          id: newId,
+          rating: data.rating,
+          comment: data.comment,
+        }
+      }
+
       return newReview
     },
   },
-
   message: {
     findMany: async ({ where, include, orderBy }: { where?: any; include?: any; orderBy?: any }) => {
-      let query = supabase.from("messages").select("*")
+      let filteredMessages = [...messages]
 
       if (where) {
         if (where.OR) {
-          // Implementar lógica OR complexa se necessário
+          if (Array.isArray(where.OR)) {
+            filteredMessages = filteredMessages.filter((message) => {
+              return where.OR.some((condition: any) => {
+                if (condition.senderId && condition.receiverId) {
+                  return message.senderId === condition.senderId && message.receiverId === condition.receiverId
+                }
+                if (condition.OR) {
+                  return (
+                    (message.senderId === condition.OR[0].senderId &&
+                      message.receiverId === condition.OR[0].receiverId) ||
+                    (message.senderId === condition.OR[1].senderId && message.receiverId === condition.OR[1].receiverId)
+                  )
+                }
+                return false
+              })
+            })
+          } else {
+            filteredMessages = filteredMessages.filter(
+              (message) => message.senderId === where.OR[0].senderId || message.receiverId === where.OR[0].receiverId,
+            )
+          }
         }
 
         if (where.AND) {
-          // Implementar lógica AND complexa se necessário
+          filteredMessages = filteredMessages.filter((message) => {
+            return where.AND.every((condition: any) => {
+              if (condition.receiverId) {
+                return message.receiverId === condition.receiverId
+              }
+              if (condition.isRead !== undefined) {
+                return message.isRead === condition.isRead
+              }
+              return true
+            })
+          })
         }
       }
 
       // Ordenação
       if (orderBy) {
-        if (orderBy.created_at === "desc") {
-          query = query.order("created_at", { ascending: false })
-        } else if (orderBy.created_at === "asc") {
-          query = query.order("created_at", { ascending: true })
+        if (orderBy.createdAt === "desc") {
+          filteredMessages.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        } else if (orderBy.createdAt === "asc") {
+          filteredMessages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
         }
       }
 
-      const { data, error } = await query
-      if (error) throw error
-      return data || []
+      return filteredMessages
     },
-
     create: async ({ data }: { data: any }) => {
-      const { data: newMessage, error } = await supabase.from("messages").insert([data]).select().single()
-      if (error) throw error
+      const newId = `message-${messages.length + 1}`
+      const newMessage = {
+        id: newId,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sender: {
+          id: data.senderId,
+          name: users.find((user) => user.id === data.senderId)?.name,
+        },
+        receiver: {
+          id: data.receiverId,
+          name: users.find((user) => user.id === data.receiverId)?.name,
+        },
+      }
+      messages.push(newMessage)
       return newMessage
     },
   },
-
   notification: {
     findMany: async ({ where, orderBy, take }: { where?: any; orderBy?: any; take?: number }) => {
-      let query = supabase.from("notifications").select("*")
+      let filteredNotifications = [...notifications]
 
       if (where) {
-        if (where.user_id) {
-          query = query.eq("user_id", where.user_id)
+        if (where.userId) {
+          filteredNotifications = filteredNotifications.filter((notification) => notification.userId === where.userId)
         }
 
-        if (where.is_read !== undefined) {
-          query = query.eq("is_read", where.is_read)
+        if (where.isRead !== undefined) {
+          filteredNotifications = filteredNotifications.filter((notification) => notification.isRead === where.isRead)
         }
 
         if (where.type) {
-          query = query.eq("type", where.type)
+          filteredNotifications = filteredNotifications.filter((notification) => notification.type === where.type)
         }
       }
 
       // Ordenação
       if (orderBy) {
-        if (orderBy.created_at === "desc") {
-          query = query.order("created_at", { ascending: false })
-        } else if (orderBy.created_at === "asc") {
-          query = query.order("created_at", { ascending: true })
+        if (orderBy.createdAt === "desc") {
+          filteredNotifications.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        } else if (orderBy.createdAt === "asc") {
+          filteredNotifications.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
         }
       }
 
       if (take) {
-        query = query.limit(take)
+        filteredNotifications = filteredNotifications.slice(0, take)
       }
 
-      const { data, error } = await query
-      if (error) throw error
-      return data || []
+      return filteredNotifications
     },
-
     create: async ({ data }: { data: any }) => {
-      const { data: newNotification, error } = await supabase.from("notifications").insert([data]).select().single()
-      if (error) throw error
+      const newId = `notification-${notifications.length + 1}`
+      const newNotification = {
+        id: newId,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      notifications.push(newNotification)
       return newNotification
     },
-
     update: async ({ where, data }: { where: any; data: any }) => {
-      const { data: updatedNotification, error } = await supabase
-        .from("notifications")
-        .update(data)
-        .eq("id", where.id)
-        .select()
-        .single()
-      if (error) throw error
+      const notificationIndex = notifications.findIndex((notification) => notification.id === where.id)
+      if (notificationIndex === -1) {
+        throw new Error("Notification not found")
+      }
+      const updatedNotification = {
+        ...notifications[notificationIndex],
+        ...data,
+        updatedAt: new Date(),
+      }
+      notifications[notificationIndex] = updatedNotification
       return updatedNotification
     },
-
     updateMany: async ({ where, data }: { where: any; data: any }) => {
-      const { data: updatedNotifications, error } = await supabase
-        .from("notifications")
-        .update(data)
-        .eq("user_id", where.user_id)
-        .select()
-      if (error) throw error
-      return { count: updatedNotifications?.length || 0 }
-    },
+      let count = 0
 
-    delete: async ({ where }: { where: any }) => {
-      const { data: deletedNotification, error } = await supabase
-        .from("notifications")
-        .delete()
-        .eq("id", where.id)
-        .select()
-        .single()
-      if (error) throw error
-      return deletedNotification
-    },
-
-    count: async ({ where }: { where?: any }) => {
-      let query = supabase.from("notifications").select("*", { count: "exact", head: true })
-
-      if (where) {
-        if (where.user_id) {
-          query = query.eq("user_id", where.user_id)
-        }
-
-        if (where.is_read !== undefined) {
-          query = query.eq("is_read", where.is_read)
-        }
+      if (where.userId) {
+        notifications.forEach((notification, index) => {
+          if (notification.userId === where.userId) {
+            notifications[index] = {
+              ...notification,
+              ...data,
+              updatedAt: new Date(),
+            }
+            count++
+          }
+        })
       }
 
-      const { count, error } = await query
-      if (error) throw error
-      return count || 0
+      return { count }
+    },
+    delete: async ({ where }: { where: any }) => {
+      const notificationIndex = notifications.findIndex((notification) => notification.id === where.id)
+      if (notificationIndex === -1) {
+        throw new Error("Notification not found")
+      }
+      const deletedNotification = notifications[notificationIndex]
+      notifications.splice(notificationIndex, 1)
+      return deletedNotification
+    },
+    count: async ({ where }: { where?: any }) => {
+      let count = notifications.length
+
+      if (where) {
+        let filteredNotifications = [...notifications]
+
+        if (where.userId) {
+          filteredNotifications = filteredNotifications.filter((notification) => notification.userId === where.userId)
+        }
+
+        if (where.isRead !== undefined) {
+          filteredNotifications = filteredNotifications.filter((notification) => notification.isRead === where.isRead)
+        }
+
+        count = filteredNotifications.length
+      }
+
+      return count
     },
   },
-
   $disconnect: async () => {
     // Não faz nada, apenas para compatibilidade
   },
 }
 
-// Funções específicas do Supabase
-export async function createUserWithSupabase(userData: Database["public"]["Tables"]["users"]["Insert"]) {
-  const { data, error } = await supabase.from("users").insert([userData]).select().single()
-  if (error) throw error
-  return data
+// Funções de usuários
+export async function getUsers() {
+  return users
 }
 
-export async function getUserByEmailWithSupabase(email: string) {
-  const { data, error } = await supabase.from("users").select("*").eq("email", email).single()
-  if (error && error.code !== "PGRST116") throw error
-  return data
+export async function getUserById(id: string) {
+  return users.find((user) => user.id === id) || null
 }
 
-export async function getProvidersWithSupabase() {
-  const { data, error } = await supabase.from("providers").select(`
-      *,
-      users (*)
-    `)
-  if (error) throw error
-  return data
+export async function getUserByEmail(email: string) {
+  return users.find((user) => user.email === email) || null
 }
 
-export async function getAppointmentsWithSupabase() {
-  const { data, error } = await supabase.from("appointments").select(`
-      *,
-      clients!appointments_client_id_fkey (
-        *,
-        users (*)
-      ),
-      providers!appointments_provider_id_fkey (
-        *,
-        users (*)
-      )
-    `)
-  if (error) throw error
-  return data
+// Funções de prestadores
+export async function getProviders() {
+  return providers
+}
+
+export async function getProviderById(id: string) {
+  return providers.find((provider) => provider.id === id) || null
+}
+
+export async function getProvidersByCategory(categoryId: string) {
+  return providers.filter((provider) => provider.categoryIds.includes(categoryId))
+}
+
+// Funções de agendamentos
+export async function getAppointments() {
+  return appointments
+}
+
+export async function getAppointmentById(id: string) {
+  return appointments.find((appointment) => appointment.id === id) || null
+}
+
+export async function getAppointmentsByClientId(clientId: string) {
+  return appointments.filter((appointment) => appointment.clientId === clientId)
+}
+
+export async function getAppointmentsByProviderId(providerId: string) {
+  return appointments.filter((appointment) => appointment.providerId === providerId)
+}
+
+// Funções de avaliações
+export async function getReviews() {
+  return reviews
+}
+
+export async function getReviewById(id: string) {
+  return reviews.find((review) => review.id === id) || null
+}
+
+export async function getReviewsByProviderId(providerId: string) {
+  return reviews.filter((review) => review.providerId === providerId)
+}
+
+// Funções de mensagens
+export async function getMessages() {
+  return messages
+}
+
+export async function getMessageById(id: string) {
+  return messages.find((message) => message.id === id) || null
+}
+
+export async function getMessagesByConversation(clientId: string, providerId: string) {
+  return messages.filter(
+    (message) =>
+      (message.senderId === clientId && message.receiverId === providerId) ||
+      (message.senderId === providerId && message.receiverId === clientId),
+  )
+}
+
+export async function getConversationsByUserId(userId: string) {
+  const userConversations = messages.filter((message) => message.senderId === userId || message.receiverId === userId)
+
+  const conversationPartners = new Set<string>()
+  userConversations.forEach((message) => {
+    if (message.senderId === userId) {
+      conversationPartners.add(message.receiverId)
+    } else {
+      conversationPartners.add(message.senderId)
+    }
+  })
+
+  return Array.from(conversationPartners)
+}
+
+// Funções de notificações
+export async function getNotifications() {
+  return notifications
+}
+
+export async function getNotificationById(id: string) {
+  return notifications.find((notification) => notification.id === id) || null
+}
+
+export async function getNotificationsByUserId(userId: string) {
+  return notifications.filter((notification) => notification.userId === userId)
+}
+
+// Funções de serviços e categorias
+export async function getServices() {
+  return services
+}
+
+export async function getCategories() {
+  return categories
 }
 
 export default prisma

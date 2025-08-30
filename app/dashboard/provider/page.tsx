@@ -4,7 +4,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, Clock, DollarSign, Users } from "lucide-react"
 import { ProviderAppointmentCard } from "@/components/dashboard/provider-appointment-card"
 import { ProviderClientCard } from "@/components/dashboard/provider-client-card"
-import Link from "next/link"
 
 export default function ProviderDashboard() {
   return (
@@ -14,12 +13,10 @@ export default function ProviderDashboard() {
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Bem-vindo de volta! Gerencie seus serviços e agendamentos.</p>
         </div>
-        <Link href="/dashboard/provider/availability">
-          <Button>
-            <Calendar className="mr-2 h-4 w-4" />
-            Gerenciar Disponibilidade
-          </Button>
-        </Link>
+        <Button>
+          <Calendar className="mr-2 h-4 w-4" />
+          Gerenciar Disponibilidade
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

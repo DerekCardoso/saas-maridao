@@ -1,27 +1,34 @@
 "use client"
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState } from "react"
+import { useSearchParams } from "next/navigation"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 import { RegisterForm } from "@/components/auth/register-form"
 
 export default function RegisterClientPage() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Maridão</h1>
-          <p className="mt-2 text-sm text-gray-600">Conectando você aos melhores prestadores de serviços</p>
-        </div>
+  const searchParams = useSearchParams()
+  const defaultTab = searchParams.get("type") === "provider" ? "provider" : "client"
+  const [showPremiumOption, setShowPremiumOption] = useState(false)
+  const [isPremium, setIsPremium] = useState(false)
 
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Criar conta</CardTitle>
-            <CardDescription className="text-center">Preencha os dados abaixo para criar sua conta</CardDescription>
-          </CardHeader>
-          <CardContent>
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Header />
+
+      <main className="flex-1 flex items-center justify-center py-12">
+        <div className="container px-4 md:px-6">
+          <div className="mx-auto max-w-md space-y-6">
+            <div className="space-y-2 text-center">
+              <h1 className="text-3xl font-bold">Crie sua conta</h1>
+              <p className="text-muted-foreground">Cadastre-se para começar a usar a plataforma</p>
+            </div>
+
             <RegisterForm />
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
+      </main>
+
+      <Footer />
     </div>
   )
 }

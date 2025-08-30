@@ -3,99 +3,73 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
-import * as z from "zod"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/components/ui/use-toast"
-import { validateUserCredentials } from "@/lib/services/user-service"
-
-const formSchema = z.object({
-  email: z.string().email({
-    message: "Por favor, insira um email válido.",
-  }),
-  password: z.string().min(6, {
-    message: "A senha deve ter pelo menos 6 caracteres.",
-  }),
-})
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { loginUser } from "@/lib/services/user-service"
+import { isSupabaseConfigured, getSupabaseConfigStatus } from "@/lib/supabase"
+import { Loader2, LogIn, AlertCircle, CheckCircle, Database, Settings } from "lucide-react"
 
 export function LoginForm() {
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  })
   const [isLoading, setIsLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
-  const router = useRouter()
-  const { toast } = useToast()
+  const [result, setResult] = useState<{ success: boolean; message: string; user?: any } | null>(null)
 
-  const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {}
+  // Check if Supabase is configured
+  const isConfigured = isSupabaseConfigured()
+  const configStatus = getSupabaseConfigStatus()
 
-    if (!email) {
-      newErrors.email = "Email é obrigatório"
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = "Email inválido"
-    }
-
-    if (!password) {
-      newErrors.password = "Senha é obrigatória"
-    } else if (password.length < 6) {
-      newErrors.password = "Senha deve ter pelo menos 6 caracteres"
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    setResult(null) // Clear previous results when user types
   }
 
-  async function onSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!validateForm()) {
+    if (!formData.email || !formData.password) {
+      setResult({ success: false, message: "Preencha todos os campos" })
+      return
+    }
+
+    if (!isConfigured) {
+      setResult({
+        success: false,
+        message: `Sistema não configurado. Configure as variáveis: ${configStatus.missingVars.join(", ")}`,
+      })
       return
     }
 
     setIsLoading(true)
+    setResult(null)
+
     try {
-      const user = await validateUserCredentials(email, password)
+      const loginResult = await loginUser(formData)
 
-      if (user) {
-        localStorage.setItem("maridao_user", JSON.stringify(user))
-
-        toast({
-          title: "Login realizado com sucesso!",
-          description: `Bem-vindo(a) de volta, ${user.name}!`,
+      if (loginResult.success) {
+        setResult({
+          success: true,
+          message: "Login realizado com sucesso!",
+          user: loginResult.user,
         })
 
-        switch (user.userType) {
-          case "admin":
-            router.push("/admin")
-            break
-          case "provider":
-            router.push("/provider")
-            break
-          case "client":
-            router.push("/client")
-            break
-          default:
-            router.push("/")
-        }
+        // Here you would typically redirect the user or update global state
+        // For now, we'll just show the success message
       } else {
-        toast({
-          variant: "destructive",
-          title: "Erro no login",
-          description: "Email ou senha incorretos. Tente novamente.",
+        setResult({
+          success: false,
+          message: loginResult.error || "Erro ao fazer login",
         })
       }
     } catch (error) {
-      console.error("Erro no login:", error)
-      toast({
-        variant: "destructive",
-        title: "Erro no login",
-        description: "Ocorreu um erro ao fazer login. Tente novamente.",
+      setResult({
+        success: false,
+        message: error instanceof Error ? error.message : "Erro desconhecido",
       })
     } finally {
       setIsLoading(false)
@@ -103,72 +77,137 @@ export function LoginForm() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Login</CardTitle>
-        <CardDescription>Entre com suas credenciais para acessar sua conta.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="seuemail@exemplo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={errors.email ? "border-red-500" : ""}
-            />
-            {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
-          </div>
+    <div className="w-full max-w-md mx-auto space-y-4">
+      {/* Configuration Status Alert */}
+      {!isConfigured && (
+        <Alert variant="destructive">
+          <Settings className="h-4 w-4" />
+          <AlertDescription>
+            <div className="space-y-2">
+              <div className="font-medium">Sistema não configurado</div>
+              <div className="text-sm">Configure as seguintes variáveis de ambiente:</div>
+              <ul className="text-xs space-y-1 mt-2">
+                {configStatus.missingVars.map((varName) => (
+                  <li key={varName} className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                    <code className="bg-background px-1 rounded">{varName}</code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
-            <div className="relative">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LogIn className="h-5 w-5" />
+            Entrar
+            {isConfigured && <Database className="h-4 w-4 text-green-500" />}
+          </CardTitle>
+          <CardDescription>
+            Faça login em sua conta do Maridão
+            {!isConfigured && <span className="text-red-500 block mt-1">(Configure o banco de dados primeiro)</span>}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+                placeholder="seu@email.com"
+                disabled={!isConfigured}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
               <Input
                 id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={errors.password ? "border-red-500" : ""}
+                type="password"
+                value={formData.password}
+                onChange={(e) => handleInputChange("password", e.target.value)}
+                placeholder="Sua senha"
+                disabled={!isConfigured}
+                required
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <Eye className="h-4 w-4 text-muted-foreground" />
-                )}
-              </Button>
             </div>
-            {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
-          </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Entrando...
-              </>
-            ) : (
-              "Entrar"
+            <Button type="submit" disabled={isLoading || !isConfigured} className="w-full">
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Entrando...
+                </>
+              ) : !isConfigured ? (
+                "Configure o Sistema"
+              ) : (
+                "Entrar"
+              )}
+            </Button>
+
+            {result && (
+              <Alert variant={result.success ? "default" : "destructive"}>
+                {result.success ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <div className="font-medium">{result.success ? "Login Realizado!" : "Erro no Login"}</div>
+                    <div className="text-sm">{result.message}</div>
+                    {result.user && (
+                      <div className="text-xs space-y-1 mt-2 p-2 bg-background rounded border">
+                        <div>
+                          <strong>Bem-vindo:</strong> {result.user.name}
+                        </div>
+                        <div>
+                          <strong>Tipo:</strong> {result.user.userType}
+                        </div>
+                        <div>
+                          <strong>Email:</strong> {result.user.email}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </AlertDescription>
+              </Alert>
             )}
-          </Button>
-        </form>
-      </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button variant="link" className="px-0" asChild>
-          <a href="/forgot-password">Esqueceu a senha?</a>
-        </Button>
-      </CardFooter>
-    </Card>
+
+            <div className="text-center text-sm text-muted-foreground">
+              <p>
+                Não tem uma conta?{" "}
+                <a href="/register" className="text-primary hover:underline">
+                  Cadastre-se
+                </a>
+              </p>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Configuration Help */}
+      {!isConfigured && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm text-orange-800">Como Configurar</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-orange-700 space-y-2">
+            <div>1. Crie um projeto no Supabase</div>
+            <div>2. Configure as variáveis de ambiente:</div>
+            <div className="pl-4 space-y-1 font-mono text-xs">
+              <div>NEXT_PUBLIC_SUPABASE_URL</div>
+              <div>NEXT_PUBLIC_SUPABASE_ANON_KEY</div>
+              <div>SUPABASE_SERVICE_ROLE_KEY</div>
+            </div>
+            <div>3. Execute os scripts SQL do projeto</div>
+            <div>4. Reinicie a aplicação</div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   )
 }

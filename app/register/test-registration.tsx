@@ -2,195 +2,270 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { testSupabaseConnection } from "@/lib/supabase"
 import { createUser } from "@/lib/services/user-service"
+import { AlertCircle, CheckCircle, Database, Loader2 } from "lucide-react"
 
 export function TestRegistration() {
-  const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(false)
+  const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "success" | "error">("idle")
+  const [connectionError, setConnectionError] = useState<string>("")
+  const [testResults, setTestResults] = useState<Array<{ test: string; status: "success" | "error"; message: string }>>(
+    [],
+  )
+  const [isRunningTests, setIsRunningTests] = useState(false)
 
-  const testClientRegistration = async () => {
-    setIsLoading(true)
+  const testConnection = async () => {
+    setConnectionStatus("testing")
+    setConnectionError("")
+
     try {
-      const userData = {
-        name: "João Cliente Teste",
-        email: `joao.cliente.${Date.now()}@teste.com`,
-        password: "senha123",
-        phone: "(11) 99999-9999",
-        userType: "client" as const,
-        address: {
-          street: "Av. Paulista",
-          number: "1000",
-          complement: "Apto 101",
-          neighborhood: "Bela Vista",
-          city: "São Paulo",
-          state: "SP",
-          cep: "01310100",
-        },
+      const result = await testSupabaseConnection()
+
+      if (result.success) {
+        setConnectionStatus("success")
+      } else {
+        setConnectionStatus("error")
+        setConnectionError(result.error || "Erro desconhecido")
       }
-
-      console.log("Criando cliente:", userData)
-      await createUser(userData)
-
-      toast({
-        title: "✅ Cliente criado com sucesso!",
-        description: `Email: ${userData.email} | Endereço: ${userData.address.street}, ${userData.address.number}`,
-        variant: "default",
-      })
     } catch (error) {
-      console.error("Erro ao criar cliente:", error)
-      toast({
-        title: "❌ Erro ao criar cliente",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
+      setConnectionStatus("error")
+      setConnectionError(error instanceof Error ? error.message : "Erro desconhecido")
     }
   }
 
-  const testClientRegistration2 = async () => {
-    setIsLoading(true)
+  const runTests = async () => {
+    setIsRunningTests(true)
+    setTestResults([])
+    const results: Array<{ test: string; status: "success" | "error"; message: string }> = []
+
+    // Test 1: Create client
     try {
-      const userData = {
-        name: "Ana Paula Santos",
-        email: `ana.santos.${Date.now()}@teste.com`,
-        password: "senha123",
-        phone: "(11) 98888-8888",
-        userType: "client" as const,
+      console.log("🧪 Testando criação de cliente...")
+      const clientResult = await createUser({
+        email: `cliente.teste.${Date.now()}@example.com`,
+        name: "Cliente Teste",
+        phone: "11999999999",
+        password: "123456",
+        userType: "client",
         address: {
-          street: "Rua Oscar Freire",
-          number: "500",
-          complement: "Cobertura",
-          neighborhood: "Jardins",
+          street: "Rua Teste",
+          number: "123",
+          neighborhood: "Centro",
           city: "São Paulo",
           state: "SP",
-          cep: "01426001",
+          cep: "01234567",
         },
+      })
+
+      if (clientResult.success) {
+        results.push({
+          test: "Criar Cliente",
+          status: "success",
+          message: `Cliente criado: ${clientResult.user?.name} (ID: ${clientResult.user?.id})`,
+        })
+      } else {
+        results.push({ test: "Criar Cliente", status: "error", message: clientResult.error || "Erro desconhecido" })
       }
-
-      console.log("Criando cliente 2:", userData)
-      await createUser(userData)
-
-      toast({
-        title: "✅ Cliente Ana criada!",
-        description: `Email: ${userData.email} | Bairro: ${userData.address.neighborhood}`,
-        variant: "default",
-      })
     } catch (error) {
-      console.error("Erro ao criar cliente 2:", error)
-      toast({
-        title: "❌ Erro ao criar cliente",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
+      results.push({
+        test: "Criar Cliente",
+        status: "error",
+        message: error instanceof Error ? error.message : "Erro desconhecido",
       })
-    } finally {
-      setIsLoading(false)
     }
-  }
 
-  const testProviderRegistration = async () => {
-    setIsLoading(true)
+    // Test 2: Create provider
     try {
-      const userData = {
-        name: "Maria Prestadora Premium",
-        email: `maria.prestadora.${Date.now()}@teste.com`,
-        password: "senha123",
-        phone: "(11) 97777-7777",
-        userType: "provider" as const,
+      console.log("🧪 Testando criação de prestador...")
+      const providerResult = await createUser({
+        email: `prestador.teste.${Date.now()}@example.com`,
+        name: "Prestador Teste",
+        phone: "11888888888",
+        password: "123456",
+        userType: "provider",
         address: {
-          street: "Rua Augusta",
-          number: "500",
-          complement: "Sala 10",
-          neighborhood: "Consolação",
+          street: "Av. Teste",
+          number: "456",
+          neighborhood: "Vila Teste",
           city: "São Paulo",
           state: "SP",
-          cep: "01305100",
+          cep: "01234567",
         },
-        bio: "Especialista em serviços domésticos com mais de 8 anos de experiência. Atendo com qualidade, pontualidade e preços justos. Trabalho com materiais de primeira qualidade e ofereço garantia em todos os serviços.",
-        experienceYears: 8,
-        specialties: ["Elétrica", "Hidráulica", "Pintura"],
-        isPremium: true,
+        providerData: {
+          bio: "Prestador de serviços teste",
+          experienceYears: 5,
+          isPremium: true,
+          specialties: ["Eletricista", "Encanador"],
+        },
+      })
+
+      if (providerResult.success) {
+        results.push({
+          test: "Criar Prestador",
+          status: "success",
+          message: `Prestador criado: ${providerResult.user?.name} (ID: ${providerResult.user?.id})`,
+        })
+      } else {
+        results.push({ test: "Criar Prestador", status: "error", message: providerResult.error || "Erro desconhecido" })
       }
-
-      console.log("Criando prestador:", userData)
-      await createUser(userData)
-
-      toast({
-        title: "✅ Prestador Premium criado!",
-        description: `Email: ${userData.email} | Especialidades: ${userData.specialties.join(", ")}`,
-        variant: "default",
-      })
     } catch (error) {
-      console.error("Erro ao criar prestador:", error)
-      toast({
-        title: "❌ Erro ao criar prestador",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
+      results.push({
+        test: "Criar Prestador",
+        status: "error",
+        message: error instanceof Error ? error.message : "Erro desconhecido",
       })
-    } finally {
-      setIsLoading(false)
     }
+
+    // Test 3: Try duplicate email
+    try {
+      console.log("🧪 Testando email duplicado...")
+      const duplicateResult = await createUser({
+        email: "cliente@teste.com", // This should already exist
+        name: "Cliente Duplicado",
+        password: "123456",
+        userType: "client",
+      })
+
+      if (!duplicateResult.success && duplicateResult.error?.includes("já está em uso")) {
+        results.push({
+          test: "Validação Email Duplicado",
+          status: "success",
+          message: "Validação de email duplicado funcionando corretamente",
+        })
+      } else {
+        results.push({
+          test: "Validação Email Duplicado",
+          status: "error",
+          message: "Validação de email duplicado não funcionou como esperado",
+        })
+      }
+    } catch (error) {
+      results.push({
+        test: "Validação Email Duplicado",
+        status: "error",
+        message: error instanceof Error ? error.message : "Erro desconhecido",
+      })
+    }
+
+    setTestResults(results)
+    setIsRunningTests(false)
   }
 
   return (
-    <div className="space-y-4 p-6 border rounded-lg bg-white shadow-sm">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900">🧪 Teste Rápido de Registro</h3>
-        <p className="text-sm text-gray-600 mt-1">
-          Use estes botões para criar usuários de teste rapidamente com dados realistas:
-        </p>
-      </div>
-
-      <div className="space-y-3">
-        <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-2">👥 Clientes</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Button
-              onClick={testClientRegistration}
-              disabled={isLoading}
-              variant="outline"
-              className="h-auto p-4 flex flex-col items-start border-green-200 hover:border-green-300"
-            >
-              <span className="font-medium">👤 João Cliente</span>
-              <span className="text-xs text-gray-500 mt-1">Av. Paulista - Bela Vista</span>
+    <div className="space-y-6">
+      {/* Connection Test */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            Teste de Conexão Supabase
+          </CardTitle>
+          <CardDescription>Verifique se a conexão com o Supabase está funcionando</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Button onClick={testConnection} disabled={connectionStatus === "testing"}>
+              {connectionStatus === "testing" ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Testando...
+                </>
+              ) : (
+                "Testar Conexão"
+              )}
             </Button>
 
-            <Button
-              onClick={testClientRegistration2}
-              disabled={isLoading}
-              variant="outline"
-              className="h-auto p-4 flex flex-col items-start border-green-200 hover:border-green-300"
-            >
-              <span className="font-medium">👩 Ana Santos</span>
-              <span className="text-xs text-gray-500 mt-1">Oscar Freire - Jardins</span>
-            </Button>
-          </div>
-        </div>
+            {connectionStatus === "success" && (
+              <Badge variant="default" className="bg-green-500">
+                <CheckCircle className="mr-1 h-3 w-3" />
+                Conexão OK
+              </Badge>
+            )}
 
-        <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-2">🔧 Prestadores</h4>
-          <div className="grid grid-cols-1 gap-3">
-            <Button
-              onClick={testProviderRegistration}
-              disabled={isLoading}
-              variant="outline"
-              className="h-auto p-4 flex flex-col items-start border-orange-200 hover:border-orange-300"
-            >
-              <span className="font-medium">⭐ Maria Prestadora Premium</span>
-              <span className="text-xs text-gray-500 mt-1">Elétrica, Hidráulica, Pintura - 8 anos exp.</span>
-            </Button>
+            {connectionStatus === "error" && (
+              <Badge variant="destructive">
+                <AlertCircle className="mr-1 h-3 w-3" />
+                Erro na Conexão
+              </Badge>
+            )}
           </div>
-        </div>
-      </div>
 
-      {isLoading && (
-        <div className="text-center py-2">
-          <div className="inline-flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-sm text-gray-600">Criando usuário...</span>
-          </div>
-        </div>
+          {connectionError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{connectionError}</AlertDescription>
+            </Alert>
+          )}
+
+          {connectionStatus === "error" && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Configuração Necessária:</strong>
+                <ol className="mt-2 space-y-1 text-sm">
+                  <li>1. Configure as variáveis de ambiente no Vercel:</li>
+                  <li className="ml-4">• NEXT_PUBLIC_SUPABASE_URL</li>
+                  <li className="ml-4">• NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
+                  <li className="ml-4">• SUPABASE_SERVICE_ROLE_KEY</li>
+                  <li>2. Execute os SQLs no Supabase SQL Editor</li>
+                  <li>3. Verifique se as URLs estão corretas</li>
+                </ol>
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Registration Tests */}
+      {connectionStatus === "success" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Teste de Cadastro</CardTitle>
+            <CardDescription>Execute testes de criação de usuários</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button onClick={runTests} disabled={isRunningTests} className="w-full">
+              {isRunningTests ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Executando Testes...
+                </>
+              ) : (
+                "Executar Testes de Cadastro"
+              )}
+            </Button>
+
+            {testResults.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-medium">Resultados dos Testes:</h4>
+                {testResults.map((result, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-start gap-3 p-3 border rounded-md ${
+                      result.status === "success" ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
+                    }`}
+                  >
+                    {result.status === "success" ? (
+                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                    )}
+                    <div className="flex-1">
+                      <div className="font-medium">{result.test}</div>
+                      <div className="text-sm text-muted-foreground mt-1">{result.message}</div>
+                    </div>
+                    <Badge variant={result.status === "success" ? "default" : "destructive"}>
+                      {result.status === "success" ? "Sucesso" : "Erro"}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   )

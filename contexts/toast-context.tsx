@@ -1,102 +1,34 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useCallback } from "react"
-import { useToast } from "@/hooks/use-toast"
 
-export interface ToastMessage {
-  id: string
-  title: string
+import { createContext, useContext } from "react"
+import { useToastNotification } from "@/hooks/use-toast-notification"
+
+type ToastOptions = {
+  title?: string
   description?: string
-  variant?: "default" | "destructive" | "success" | "warning"
   duration?: number
+  action?: React.ReactNode
+  id?: string
 }
 
 interface ToastContextType {
-  showToast: (message: Omit<ToastMessage, "id">) => void
-  showSuccess: (title: string, description?: string) => void
-  showError: (title: string, description?: string) => void
-  showWarning: (title: string, description?: string) => void
-  showInfo: (title: string, description?: string) => void
+  success: (options: ToastOptions) => { id: string; dismiss: () => void; update: (props: any) => void }
+  error: (options: ToastOptions) => { id: string; dismiss: () => void; update: (props: any) => void }
+  info: (options: ToastOptions) => { id: string; dismiss: () => void; update: (props: any) => void }
+  warning: (options: ToastOptions) => { id: string; dismiss: () => void; update: (props: any) => void }
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const { toast } = useToast()
+  const toast = useToastNotification()
 
-  const showToast = useCallback(
-    (message: Omit<ToastMessage, "id">) => {
-      toast({
-        title: message.title,
-        description: message.description,
-        variant: message.variant || "default",
-        duration: message.duration || 5000,
-      })
-    },
-    [toast],
-  )
-
-  const showSuccess = useCallback(
-    (title: string, description?: string) => {
-      toast({
-        title,
-        description,
-        variant: "default",
-        duration: 5000,
-      })
-    },
-    [toast],
-  )
-
-  const showError = useCallback(
-    (title: string, description?: string) => {
-      toast({
-        title,
-        description,
-        variant: "destructive",
-        duration: 5000,
-      })
-    },
-    [toast],
-  )
-
-  const showWarning = useCallback(
-    (title: string, description?: string) => {
-      toast({
-        title,
-        description,
-        variant: "default",
-        duration: 5000,
-      })
-    },
-    [toast],
-  )
-
-  const showInfo = useCallback(
-    (title: string, description?: string) => {
-      toast({
-        title,
-        description,
-        variant: "default",
-        duration: 5000,
-      })
-    },
-    [toast],
-  )
-
-  const value: ToastContextType = {
-    showToast,
-    showSuccess,
-    showError,
-    showWarning,
-    showInfo,
-  }
-
-  return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>
+  return <ToastContext.Provider value={toast}>{children}</ToastContext.Provider>
 }
 
-export function useToastContext(): ToastContextType {
+export function useToastContext() {
   const context = useContext(ToastContext)
   if (context === undefined) {
     throw new Error("useToastContext must be used within a ToastProvider")

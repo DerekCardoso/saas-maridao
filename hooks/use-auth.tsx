@@ -1,128 +1,132 @@
 "use client"
 
-import type React from "react"
-
-import { createContext, useContext, useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import type { UserResponse } from "@/lib/services/user-service"
-import { useToast } from "@/components/ui/use-toast"
+import { useToastContext } from "@/contexts/toast-context"
 
-interface AuthContextType {
-  user: UserResponse | null
-  login: (email: string, password: string) => Promise<boolean>
-  logout: () => void
-  isLoading: boolean
+interface User {
+  id: string
+  name: string
+  email: string
+  userType: "client" | "provider" | "admin"
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserResponse | null>(null)
+export function useAuth() {
+  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
-  const { toast } = useToast()
+  const toast = useToastContext()
 
   useEffect(() => {
-    // Verificar se estamos no ambiente do cliente
-    if (typeof window !== "undefined") {
-      // Verificar se há um usuário logado no localStorage
-      const storedUser = localStorage.getItem("maridao_user")
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser))
-        } catch (error) {
-          console.error("Erro ao carregar usuário do localStorage:", error)
-          localStorage.removeItem("maridao_user")
-        }
+    // Verificar se o usuário está autenticado
+    const token = localStorage.getItem("token")
+    const userData = localStorage.getItem("user")
+
+    if (token && userData) {
+      try {
+        const parsedUser = JSON.parse(userData)
+        setUser(parsedUser)
+      } catch (error) {
+        console.error("Erro ao analisar dados do usuário:", error)
+        localStorage.removeItem("token")
+        localStorage.removeItem("user")
       }
     }
+
     setIsLoading(false)
   }, [])
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string) => {
+    setIsLoading(true)
+
     try {
-      const response = await fetch("/api/auth/validate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      // Simulando uma chamada de API com um atraso
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      // Verificar credenciais com os usuários mockados
+      const mockUsers = [
+        {
+          id: "client-1",
+          firstName: "João",
+          lastName: "Silva",
+          email: "cliente@exemplo.com",
+          password: "senha123",
+          userType: "client",
         },
-        body: JSON.stringify({ email, password }),
+        {
+          id: "provider-1",
+          firstName: "Carlos",
+          lastName: "Oliveira",
+          email: "prestador@exemplo.com",
+          password: "senha123",
+          userType: "provider",
+        },
+        {
+          id: "admin-1",
+          firstName: "Admin",
+          lastName: "Sistema",
+          email: "admin@exemplo.com",
+          password: "admin123",
+          userType: "admin",
+        },
+      ]
+
+      const user = mockUsers.find((user) => user.email === email && user.password === password)
+
+      if (!user) {
+        throw new Error("Email ou senha incorretos")
+      }
+
+      // Salvar o token no localStorage (simulado)
+      localStorage.setItem("token", "mock-jwt-token")
+
+      // Salvar informações do usuário
+      const userData = {
+        id: user.id,
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        userType: user.userType,
+      }
+
+      localStorage.setItem("user", JSON.stringify(userData))
+      setUser(userData)
+
+      toast.success({
+        title: "Login realizado com sucesso",
+        description: "Você foi autenticado com sucesso.",
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Erro ao fazer login")
-      }
+      // Redirecionar com base no tipo de usuário
+      router.push(`/dashboard/${user.userType}`)
 
-      const userData = await response.json()
-
-      if (userData) {
-        setUser(userData)
-        if (typeof window !== "undefined") {
-          localStorage.setItem("maridao_user", JSON.stringify(userData))
-        }
-
-        toast({
-          title: "Login realizado com sucesso!",
-          description: `Bem-vindo(a), ${userData.name}!`,
-        })
-
-        // Redirecionar baseado no tipo de usuário
-        switch (userData.userType) {
-          case "admin":
-            router.push("/admin")
-            break
-          case "provider":
-            router.push("/provider")
-            break
-          case "client":
-            router.push("/client")
-            break
-          default:
-            router.push("/")
-        }
-
-        return true
-      } else {
-        toast({
-          title: "Erro no login",
-          description: "Email ou senha incorretos. Tente novamente.",
-          variant: "destructive",
-        })
-        return false
-      }
+      return userData
     } catch (error) {
-      console.error("Erro no login:", error)
-      toast({
+      toast.error({
         title: "Erro no login",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao fazer login. Tente novamente.",
-        variant: "destructive",
+        description: error instanceof Error ? error.message : "Email ou senha incorretos. Tente novamente.",
       })
-      return false
+      throw error
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const logout = () => {
+    localStorage.removeItem("token")
+    localStorage.removeItem("user")
     setUser(null)
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("maridao_user")
-    }
-
-    toast({
+    router.push("/")
+    toast.info({
       title: "Logout realizado",
-      description: "Você foi desconectado com sucesso.",
+      description: "Você saiu da sua conta com sucesso.",
     })
-
-    router.push("/login")
   }
 
-  return <AuthContext.Provider value={{ user, login, logout, isLoading }}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
+  return {
+    user,
+    isLoading,
+    isAuthenticated: !!user,
+    login,
+    logout,
   }
-  return context
 }

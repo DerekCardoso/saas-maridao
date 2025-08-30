@@ -1,85 +1,113 @@
-import { createBrowserClient, createServerClient, type CookieOptions } from "@supabase/ssr"
-import { createClient as createAdminClient } from "@supabase/supabase-js"
+import { createClient } from "@supabase/supabase-js"
 
-// IMPORTANT: Do not hardcode any keys here.
-// Required envs:
-// - NEXT_PUBLIC_SUPABASE_URL
-// - NEXT_PUBLIC_SUPABASE_ANON_KEY
-// - SUPABASE_SERVICE_ROLE_KEY (server only)
+// Environment variables with fallbacks for development
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// Create clients only if we have the required variables
+export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
 
-function assertClientEnv() {
-  if (!url) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL")
-  if (!anonKey) throw new Error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY")
-}
+export const supabaseAdmin =
+  supabaseUrl && supabaseServiceKey
+    ? createClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      })
+    : null
 
-function assertServerEnv() {
-  if (!url) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL")
-  if (!serviceRoleKey) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY")
-}
+// Export default for compatibility
+export default supabase
 
-// Browser client (no cookies wiring needed)
-export function createSupabaseBrowserClient() {
-  assertClientEnv()
-  return createBrowserClient(url!, anonKey!, {
-    cookies: {
-      // In the browser client, SSR helpers manage cookies automatically via document.cookie.
-      get: (name: string) => {
-        if (typeof document === "undefined") return undefined
-        const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`))
-        return match ? match[2] : undefined
-      },
-    },
-  })
-}
+// Helper functions with better error handling
+export function getSupabaseClient() {
+  if (!supabase) {
+    const missingVars = []
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missingVars.push("NEXT_PUBLIC_SUPABASE_URL")
+    if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) missingVars.push("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 
-// Server client bound to Next.js cookies (RSC/Route Handlers)
-// Pass a cookie adapter so Supabase Auth can persist/refresh session cookies.
-export function createSupabaseServerClient() {
-  assertClientEnv()
-  // Lazy import to avoid client bundling next/headers
-  const { cookies } = require("next/headers") as typeof import("next/headers")
-  const cookieStore = cookies()
-
-  return createServerClient(url!, anonKey!, {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        try {
-          cookieStore.set({ name, value, ...options })
-        } catch {
-          // In Route Handlers, cookies.set is allowed.
-          // In Server Components, set may be disallowed; swallow silently.
-        }
-      },
-      remove(name: string, options: CookieOptions) {
-        try {
-          cookieStore.set({ name, value: "", ...options })
-        } catch {
-          // See comment above.
-        }
-      },
-    },
-  })
-}
-
-// Admin client (server only). NEVER use in the browser.
-export function getSupabaseAdmin() {
-  if (typeof window !== "undefined") {
-    throw new Error("getSupabaseAdmin() must not be used on the client")
+    throw new Error(`Supabase client not initialized. Missing environment variables: ${missingVars.join(", ")}`)
   }
-  assertServerEnv()
-  return createAdminClient(url!, serviceRoleKey!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
+  return supabase
 }
 
-// Types (kept for compatibility with the rest of the codebase)
+export function getSupabaseAdmin() {
+  if (!supabaseAdmin) {
+    const missingVars = []
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missingVars.push("NEXT_PUBLIC_SUPABASE_URL")
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missingVars.push("SUPABASE_SERVICE_ROLE_KEY")
+
+    throw new Error(`Supabase admin client not initialized. Missing environment variables: ${missingVars.join(", ")}`)
+  }
+  return supabaseAdmin
+}
+
+// Check if Supabase is properly configured
+export function isSupabaseConfigured(): boolean {
+  return !!(supabaseUrl && supabaseAnonKey && supabaseServiceKey)
+}
+
+// Get configuration status
+export function getSupabaseConfigStatus() {
+  return {
+    url: !!supabaseUrl,
+    anonKey: !!supabaseAnonKey,
+    serviceKey: !!supabaseServiceKey,
+    isFullyConfigured: isSupabaseConfigured(),
+    missingVars: [
+      !supabaseUrl && "NEXT_PUBLIC_SUPABASE_URL",
+      !supabaseAnonKey && "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      !supabaseServiceKey && "SUPABASE_SERVICE_ROLE_KEY",
+    ].filter(Boolean),
+  }
+}
+
+// Test connection function with better error handling
+export async function testSupabaseConnection() {
+  try {
+    console.log("🔍 Testing Supabase connection...")
+
+    const configStatus = getSupabaseConfigStatus()
+    console.log("Config status:", configStatus)
+
+    if (!configStatus.isFullyConfigured) {
+      return {
+        success: false,
+        error: `Missing environment variables: ${configStatus.missingVars.join(", ")}. Please configure them in your deployment settings.`,
+        configStatus,
+      }
+    }
+
+    if (!supabaseAdmin) {
+      return {
+        success: false,
+        error: "Supabase admin client not initialized despite having environment variables.",
+        configStatus,
+      }
+    }
+
+    const { data, error } = await supabaseAdmin.from("users").select("count").limit(1)
+
+    if (error) {
+      console.error("❌ Supabase connection failed:", error)
+      return { success: false, error: error.message, configStatus }
+    }
+
+    console.log("✅ Supabase connection successful")
+    return { success: true, data, configStatus }
+  } catch (error) {
+    console.error("💥 Supabase connection error:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      configStatus: getSupabaseConfigStatus(),
+    }
+  }
+}
+
+// Database types
 export type Database = {
   public: {
     Tables: {
@@ -119,9 +147,24 @@ export type Database = {
         }
       }
       clients: {
-        Row: { id: string; user_id: string; created_at: string; updated_at: string }
-        Insert: { id?: string; user_id: string; created_at?: string; updated_at?: string }
-        Update: { id?: string; user_id?: string; created_at?: string; updated_at?: string }
+        Row: {
+          id: string
+          user_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          created_at?: string
+          updated_at?: string
+        }
       }
       providers: {
         Row: {
@@ -209,201 +252,24 @@ export type Database = {
         }
       }
       provider_specialties: {
-        Row: { id: string; provider_id: string; name: string; created_at: string; updated_at: string }
-        Insert: { id?: string; provider_id: string; name: string; created_at?: string; updated_at?: string }
-        Update: { id?: string; provider_id?: string; name?: string; created_at?: string; updated_at?: string }
-      }
-      provider_availability: {
         Row: {
           id: string
           provider_id: string
-          day_of_week: number
-          start_time: string
-          end_time: string
-          is_active: boolean
+          name: string
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           provider_id: string
-          day_of_week: number
-          start_time: string
-          end_time: string
-          is_active?: boolean
+          name: string
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           provider_id?: string
-          day_of_week?: number
-          start_time?: string
-          end_time?: string
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      provider_blocked_dates: {
-        Row: {
-          id: string
-          provider_id: string
-          blocked_date: string
-          reason: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          provider_id: string
-          blocked_date: string
-          reason?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          provider_id?: string
-          blocked_date?: string
-          reason?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      appointments: {
-        Row: {
-          id: string
-          client_id: string
-          provider_id: string
-          service: string
-          date: string
-          time: string
-          status: "pending" | "confirmed" | "in_progress" | "completed" | "cancelled"
-          address: string
-          details: string | null
-          price: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          client_id: string
-          provider_id: string
-          service: string
-          date: string
-          time: string
-          status?: "pending" | "confirmed" | "in_progress" | "completed" | "cancelled"
-          address: string
-          details?: string | null
-          price: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          client_id?: string
-          provider_id?: string
-          service?: string
-          date?: string
-          time?: string
-          status?: "pending" | "confirmed" | "in_progress" | "completed" | "cancelled"
-          address?: string
-          details?: string | null
-          price?: number
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      reviews: {
-        Row: {
-          id: string
-          client_id: string
-          provider_id: string
-          appointment_id: string
-          rating: number
-          comment: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          client_id: string
-          provider_id: string
-          appointment_id: string
-          rating: number
-          comment?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          client_id?: string
-          provider_id?: string
-          appointment_id?: string
-          rating?: number
-          comment?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      messages: {
-        Row: {
-          id: string
-          sender_id: string
-          receiver_id: string
-          content: string
-          is_read: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          sender_id: string
-          receiver_id: string
-          content: string
-          is_read?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          sender_id?: string
-          receiver_id?: string
-          content?: string
-          is_read?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      notifications: {
-        Row: {
-          id: string
-          user_id: string
-          title: string
-          message: string
-          type: "appointment" | "message" | "review" | "payment" | "system"
-          is_read: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          title: string
-          message: string
-          type: "appointment" | "message" | "review" | "payment" | "system"
-          is_read?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          title?: string
-          message?: string
-          type?: "appointment" | "message" | "review" | "payment" | "system"
-          is_read?: boolean
+          name?: string
           created_at?: string
           updated_at?: string
         }
