@@ -3,159 +3,120 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AddressForm } from "@/components/address-form"
-import { createUser } from "@/lib/services/user-service"
-import { Loader2, User, Wrench, AlertCircle, CheckCircle } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { Shield } from "lucide-react"
+import { useToastContext } from "@/contexts/toast-context"
 
-interface AddressData {
-  street: string
-  number: string
-  complement?: string
-  neighborhood: string
-  city: string
-  state: string
-  cep: string
+interface RegisterFormProps {
+  onSuccess?: () => void
+  redirectUrl?: string
+  defaultType?: "client" | "provider"
+  hideLinks?: boolean
 }
 
-export function RegisterForm() {
-  const [userType, setUserType] = useState<"client" | "provider">("client")
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
-  })
-  const [providerData, setProviderData] = useState({
-    bio: "",
-    experienceYears: "",
-    isPremium: false,
-    specialties: [] as string[],
-  })
-  const [address, setAddress] = useState<AddressData | null>(null)
+export function RegisterForm({ onSuccess, redirectUrl, defaultType = "client", hideLinks = false }: RegisterFormProps) {
+  const [userType, setUserType] = useState<"client" | "provider">(defaultType)
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
+  const [cep, setCep] = useState("")
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [specialty, setSpecialty] = useState("")
+  const [isPremium, setIsPremium] = useState(false)
+  const [acceptTerms, setAcceptTerms] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [result, setResult] = useState<{ success: boolean; message: string; user?: any } | null>(null)
 
-  const specialtyOptions = [
-    "Eletricista",
-    "Encanador",
-    "Pintor",
-    "Pedreiro",
-    "Marceneiro",
-    "Jardineiro",
-    "Faxineiro",
-    "Técnico em Informática",
-    "Mecânico",
-    "Soldador",
-  ]
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const handleProviderDataChange = (field: string, value: any) => {
-    setProviderData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const handleSpecialtyToggle = (specialty: string) => {
-    setProviderData((prev) => ({
-      ...prev,
-      specialties: prev.specialties.includes(specialty)
-        ? prev.specialties.filter((s) => s !== specialty)
-        : [...prev.specialties, specialty],
-    }))
-  }
-
-  const validateForm = () => {
-    if (!formData.name || !formData.email || !formData.password) {
-      return "Preencha todos os campos obrigatórios"
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      return "As senhas não coincidem"
-    }
-
-    if (formData.password.length < 6) {
-      return "A senha deve ter pelo menos 6 caracteres"
-    }
-
-    if (!address) {
-      return "Preencha o endereço"
-    }
-
-    return null
-  }
+  const router = useRouter()
+  const toast = useToastContext()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const validationError = validateForm()
-    if (validationError) {
-      setResult({ success: false, message: validationError })
+    if (password !== confirmPassword) {
+      toast.error({
+        title: "Erro no cadastro",
+        description: "As senhas não coincidem. Tente novamente.",
+      })
+      return
+    }
+
+    if (!acceptTerms) {
+      toast.warning({
+        title: "Termos não aceitos",
+        description: "Você precisa aceitar os termos de uso para continuar.",
+      })
       return
     }
 
     setIsLoading(true)
-    setResult(null)
 
     try {
-      const userData = {
-        email: formData.email,
-        name: formData.name,
-        phone: formData.phone,
-        password: formData.password,
-        userType,
-        address,
-        ...(userType === "provider" && {
-          providerData: {
-            bio: providerData.bio,
-            experienceYears: Number.parseInt(providerData.experienceYears) || 0,
-            isPremium: providerData.isPremium,
-            specialties: providerData.specialties,
-          },
-        }),
+      // Simulando uma chamada de API com um atraso
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      // Verificar se o email já está em uso (simulado)
+      const emailExists = Math.random() > 0.9 // 10% de chance de simular email já em uso
+
+      if (emailExists) {
+        throw new Error("Este email já está em uso. Tente outro ou faça login.")
       }
 
-      const createResult = await createUser(userData)
+      // Criar um novo usuário (simulado)
+      const newUser = {
+        id: `user-${Date.now()}`,
+        firstName,
+        lastName,
+        email,
+        phone,
+        userType,
+        specialty: userType === "provider" ? specialty : undefined,
+        isPremium: userType === "provider" ? isPremium : undefined,
+      }
 
-      if (createResult.success) {
-        setResult({
-          success: true,
-          message: `${userType === "client" ? "Cliente" : "Prestador"} cadastrado com sucesso!`,
-          user: createResult.user,
-        })
-        // Reset form
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          password: "",
-          confirmPassword: "",
-        })
-        setProviderData({
-          bio: "",
-          experienceYears: "",
-          isPremium: false,
-          specialties: [],
-        })
-        setAddress(null)
+      // Salvar o token no localStorage (simulado)
+      localStorage.setItem("token", "mock-jwt-token")
+
+      // Salvar informações do usuário
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: newUser.id,
+          name: `${newUser.firstName} ${newUser.lastName}`,
+          email: newUser.email,
+          userType: newUser.userType,
+        }),
+      )
+
+      toast.success({
+        title: "Cadastro realizado com sucesso",
+        description: "Sua conta foi criada com sucesso.",
+      })
+
+      if (onSuccess) {
+        onSuccess()
+      } else if (redirectUrl) {
+        router.push(redirectUrl)
       } else {
-        setResult({
-          success: false,
-          message: createResult.error || "Erro ao criar conta",
-        })
+        // Redirecionar com base no tipo de usuário
+        if (userType === "provider") {
+          router.push("/dashboard/provider")
+        } else {
+          router.push("/dashboard/client")
+        }
       }
     } catch (error) {
-      setResult({
-        success: false,
-        message: error instanceof Error ? error.message : "Erro desconhecido",
+      toast.error({
+        title: "Erro no cadastro",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao criar sua conta. Tente novamente.",
       })
     } finally {
       setIsLoading(false)
@@ -163,206 +124,160 @@ export function RegisterForm() {
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>Criar Conta</CardTitle>
-        <CardDescription>Preencha os dados para criar sua conta no Maridão</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* User Type Selection */}
-          <div className="space-y-3">
-            <Label>Tipo de Conta *</Label>
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                type="button"
-                variant={userType === "client" ? "default" : "outline"}
-                onClick={() => setUserType("client")}
-                className="h-20 flex-col gap-2"
-              >
-                <User className="h-6 w-6" />
-                <span>Cliente</span>
-              </Button>
-              <Button
-                type="button"
-                variant={userType === "provider" ? "default" : "outline"}
-                onClick={() => setUserType("provider")}
-                className="h-20 flex-col gap-2"
-              >
-                <Wrench className="h-6 w-6" />
-                <span>Prestador</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Basic Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Informações Básicas</h3>
-
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome Completo *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder="Seu nome completo"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
-                placeholder="seu@email.com"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => handleInputChange("phone", e.target.value)}
-                placeholder="(11) 99999-9999"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha *</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar Senha *</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                  placeholder="Confirme sua senha"
-                  required
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Provider-specific fields */}
-          {userType === "provider" && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Informações do Prestador</h3>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio">Biografia</Label>
-                <Textarea
-                  id="bio"
-                  value={providerData.bio}
-                  onChange={(e) => handleProviderDataChange("bio", e.target.value)}
-                  placeholder="Conte um pouco sobre sua experiência..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="experienceYears">Anos de Experiência</Label>
-                <Input
-                  id="experienceYears"
-                  type="number"
-                  value={providerData.experienceYears}
-                  onChange={(e) => handleProviderDataChange("experienceYears", e.target.value)}
-                  placeholder="0"
-                  min="0"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label>Especialidades</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {specialtyOptions.map((specialty) => (
-                    <div key={specialty} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={specialty}
-                        checked={providerData.specialties.includes(specialty)}
-                        onCheckedChange={() => handleSpecialtyToggle(specialty)}
-                      />
-                      <Label htmlFor={specialty} className="text-sm">
-                        {specialty}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="isPremium"
-                  checked={providerData.isPremium}
-                  onCheckedChange={(checked) => handleProviderDataChange("isPremium", checked)}
-                />
-                <Label htmlFor="isPremium">Plano Premium</Label>
-              </div>
-            </div>
-          )}
-
-          {/* Address Form */}
-          <AddressForm onAddressChange={setAddress} />
-
-          {/* Submit Button */}
-          <Button type="submit" disabled={isLoading} className="w-full">
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Criando conta...
-              </>
-            ) : (
-              `Criar Conta ${userType === "client" ? "Cliente" : "Prestador"}`
-            )}
+    <form onSubmit={handleSubmit} className="space-y-4 py-2">
+      {!hideLinks && (
+        <div className="flex space-x-4 mb-4">
+          <Button
+            type="button"
+            variant={userType === "client" ? "default" : "outline"}
+            className="flex-1"
+            onClick={() => setUserType("client")}
+          >
+            Cliente
           </Button>
+          <Button
+            type="button"
+            variant={userType === "provider" ? "default" : "outline"}
+            className="flex-1"
+            onClick={() => setUserType("provider")}
+          >
+            Prestador
+          </Button>
+        </div>
+      )}
 
-          {/* Result Message */}
-          {result && (
-            <Alert variant={result.success ? "default" : "destructive"}>
-              {result.success ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-              <AlertDescription>
-                <div className="space-y-2">
-                  <div className="font-medium">
-                    {result.success ? "Conta Criada com Sucesso!" : "Erro ao Criar Conta"}
-                  </div>
-                  <div className="text-sm">{result.message}</div>
-                  {result.user && (
-                    <div className="text-xs space-y-1 mt-2 p-2 bg-background rounded border">
-                      <div>
-                        <strong>ID:</strong> {result.user.id}
-                      </div>
-                      <div>
-                        <strong>Nome:</strong> {result.user.name}
-                      </div>
-                      <div>
-                        <strong>Email:</strong> {result.user.email}
-                      </div>
-                      <div>
-                        <strong>Tipo:</strong> {result.user.userType}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-        </form>
-      </CardContent>
-    </Card>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="firstName">Nome</Label>
+          <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="lastName">Sobrenome</Label>
+          <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="seu@email.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="phone">Telefone (WhatsApp)</Label>
+        <Input
+          id="phone"
+          type="tel"
+          placeholder="(00) 00000-0000"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="cep">CEP</Label>
+        <Input id="cep" placeholder="00000-000" value={cep} onChange={(e) => setCep(e.target.value)} required />
+      </div>
+
+      {userType === "provider" && (
+        <div className="space-y-2">
+          <Label htmlFor="specialty">Especialidade Principal</Label>
+          <Select value={specialty} onValueChange={setSpecialty}>
+            <SelectTrigger id="specialty">
+              <SelectValue placeholder="Selecione uma especialidade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="eletrica">Elétrica</SelectItem>
+              <SelectItem value="hidraulica">Hidráulica</SelectItem>
+              <SelectItem value="montagem">Montagem de Móveis</SelectItem>
+              <SelectItem value="reparos">Reparos Gerais</SelectItem>
+              <SelectItem value="instalacoes">Instalações</SelectItem>
+              <SelectItem value="manutencao">Manutenção</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor="password">Senha</Label>
+        <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+        />
+      </div>
+
+      {userType === "provider" && (
+        <div className="mt-6 border rounded-lg p-4 relative">
+          <div className="absolute -top-3 bg-white px-2">
+            <Badge className="bg-yellow-400 text-yellow-900 flex items-center gap-1">
+              <Shield className="h-3 w-3" />
+              Premium
+            </Badge>
+          </div>
+          <div className="flex items-start gap-3">
+            <Checkbox id="premium-option" checked={isPremium} onCheckedChange={(checked) => setIsPremium(!!checked)} />
+            <div>
+              <label htmlFor="premium-option" className="font-medium">
+                Quero me destacar com o plano Premium
+              </label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Apareça no topo dos resultados, receba mais solicitações e tenha acesso a ferramentas exclusivas por
+                apenas R$ 49,90/mês.
+              </p>
+              <div className="mt-2">
+                <Link href="/plano-premium" className="text-sm text-primary hover:underline" target="_blank">
+                  Ver todos os benefícios
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center space-x-2">
+        <Checkbox id="terms" checked={acceptTerms} onCheckedChange={(checked) => setAcceptTerms(!!checked)} />
+        <label
+          htmlFor="terms"
+          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Concordo com os{" "}
+          <Link href="/termos" className="text-primary hover:underline" target="_blank">
+            termos de uso
+          </Link>{" "}
+          e{" "}
+          <Link href="/privacidade" className="text-primary hover:underline" target="_blank">
+            política de privacidade
+          </Link>
+        </label>
+      </div>
+
+      <Button type="submit" className="w-full" disabled={isLoading}>
+        {isLoading ? "Cadastrando..." : "Cadastrar"}
+      </Button>
+
+      {!hideLinks && (
+        <p className="text-center text-sm text-muted-foreground mt-4">
+          Já tem uma conta?{" "}
+          <Link href="/login" className="text-primary hover:underline">
+            Faça login
+          </Link>
+        </p>
+      )}
+    </form>
   )
 }
