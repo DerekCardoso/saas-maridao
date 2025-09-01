@@ -1,27 +1,22 @@
 import type React from "react"
-import type { Metadata } from "next"
-import { AdminSidebar } from "@/components/dashboard/admin-sidebar"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
+import { AdminSidebar } from "@/components/dashboard/admin-sidebar"
 
-export const metadata: Metadata = {
-  title: "Dashboard do Administrador | Maridão",
-  description: "Gerencie a plataforma Maridão",
-}
-
-export default function AdminDashboardLayout({
+export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <div className="flex min-h-screen flex-col">
-      <DashboardHeader userType="admin" />
-
-      <div className="flex flex-1">
-        <div className="hidden md:block">
-          <AdminSidebar />
-        </div>
-        <main className="flex-1 p-4 md:p-6 bg-muted/30">{children}</main>
+    <div className="flex h-screen bg-gray-50">
+      <AdminSidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <DashboardHeader
+          title="Dashboard do Administrador"
+          subtitle="Gerencie usuários e configurações do sistema"
+          userType="admin"
+        />
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   )

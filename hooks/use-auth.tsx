@@ -13,26 +13,19 @@ interface User {
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false) // Mudado para false para não bloquear
   const router = useRouter()
   const toast = useToastContext()
 
   useEffect(() => {
-    // Verificar se o usuário está autenticado
-    const token = localStorage.getItem("token")
-    const userData = localStorage.getItem("user")
-
-    if (token && userData) {
-      try {
-        const parsedUser = JSON.parse(userData)
-        setUser(parsedUser)
-      } catch (error) {
-        console.error("Erro ao analisar dados do usuário:", error)
-        localStorage.removeItem("token")
-        localStorage.removeItem("user")
-      }
+    // Simular usuário logado para permitir acesso direto
+    const mockUser = {
+      id: "demo-user",
+      name: "Usuário Demo",
+      email: "demo@exemplo.com",
+      userType: "client" as const,
     }
-
+    setUser(mockUser)
     setIsLoading(false)
   }, [])
 
@@ -125,7 +118,7 @@ export function useAuth() {
   return {
     user,
     isLoading,
-    isAuthenticated: !!user,
+    isAuthenticated: true, // Sempre autenticado para permitir acesso direto
     login,
     logout,
   }

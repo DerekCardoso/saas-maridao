@@ -2,6 +2,11 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export function middleware(request: NextRequest) {
+  // Middleware desabilitado - permitir acesso direto às rotas
+  return NextResponse.next()
+
+  /* 
+  // Código original comentado para referência
   const token = request.cookies.get("token")?.value
   const userType = request.cookies.get("userType")?.value
   const path = request.nextUrl.pathname
@@ -30,6 +35,7 @@ export function middleware(request: NextRequest) {
   }
 
   return NextResponse.next()
+  */
 }
 
 export const config = {

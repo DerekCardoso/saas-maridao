@@ -1,9 +1,8 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Menu, User } from "lucide-react"
+import { Search, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,83 +11,104 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { ClientSidebar } from "./client-sidebar"
-import { ProviderSidebar } from "./provider-sidebar"
-import { AdminSidebar } from "./admin-sidebar"
-import { NotificationBell } from "../notifications/notification-bell"
-import { useAuth } from "@/hooks/use-auth"
-import { LogoutButton } from "../auth/logout-button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 
 interface DashboardHeaderProps {
+  title: string
+  subtitle?: string
   userType: "client" | "provider" | "admin"
 }
 
-export function DashboardHeader({ userType }: DashboardHeaderProps) {
-  const pathname = usePathname()
-  const { user } = useAuth()
+export function DashboardHeader({ title, subtitle, userType }: DashboardHeaderProps) {
+  // Mock user data - não depende mais de autenticação
+  const user = {
+    name: "Usuário Demo",
+    email: "demo@exemplo.com",
+    avatar: "/placeholder.svg?height=32&width=32",
+  }
 
-  // Determina qual sidebar mostrar com base no tipo de usuário
-  const getSidebar = () => {
-    switch (userType) {
+  const getUserTypeLabel = (type: string) => {
+    switch (type) {
       case "client":
-        return <ClientSidebar />
+        return "Cliente"
       case "provider":
-        return <ProviderSidebar />
+        return "Prestador"
       case "admin":
-        return <AdminSidebar />
+        return "Administrador"
       default:
-        return null
+        return "Usuário"
+    }
+  }
+
+  const getUserTypeBadgeVariant = (type: string) => {
+    switch (type) {
+      case "client":
+        return "default"
+      case "provider":
+        return "secondary"
+      case "admin":
+        return "destructive"
+      default:
+        return "outline"
     }
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button variant="outline" size="icon" className="md:hidden">
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">Toggle Menu</span>
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="w-72 p-0">
-          {getSidebar()}
-        </SheetContent>
-      </Sheet>
-      <div className="flex-1">
-        <Link href={`/dashboard/${userType}`} className="flex items-center gap-2 font-semibold">
-          <span className="text-primary">Maridão</span>
-          <span className="text-muted-foreground">Dashboard</span>
-        </Link>
-      </div>
-      <div className="flex items-center gap-4">
-        <NotificationBell />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="rounded-full">
-              <User className="h-5 w-5" />
-              <span className="sr-only">Abrir menu de usuário</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{user?.name || "Minha Conta"}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href={`/dashboard/${userType}/profile`} className="w-full cursor-pointer">
-                Perfil
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/dashboard/${userType}/settings`} className="w-full cursor-pointer">
-                Configurações
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:bg-destructive/10">
-              <LogoutButton variant="ghost" className="w-full justify-start p-0 font-normal" showIcon={false} />
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-16 items-center px-4 gap-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="text-lg font-semibold">{title}</h1>
+              {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+            </div>
+            <Badge variant={getUserTypeBadgeVariant(userType) as any}>{getUserTypeLabel(userType)}</Badge>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="relative hidden md:block">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input type="search" placeholder="Buscar..." className="w-[200px] pl-8 lg:w-[300px]" />
+          </div>
+
+          <NotificationBell />
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                  <AvatarFallback>
+                    <User className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{user.name}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <User className="mr-2 h-4 w-4" />
+                <span>Perfil</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <span>Configurações</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <span>Sair</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   )

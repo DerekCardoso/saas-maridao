@@ -1,27 +1,22 @@
 import type React from "react"
-import type { Metadata } from "next"
-import { ClientSidebar } from "@/components/dashboard/client-sidebar"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
+import { ClientSidebar } from "@/components/dashboard/client-sidebar"
 
-export const metadata: Metadata = {
-  title: "Dashboard do Cliente | Maridão",
-  description: "Gerencie seus agendamentos e encontre profissionais",
-}
-
-export default function ClientDashboardLayout({
+export default function ClientLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <div className="flex min-h-screen flex-col">
-      <DashboardHeader userType="client" />
-
-      <div className="flex flex-1">
-        <div className="hidden md:block">
-          <ClientSidebar />
-        </div>
-        <main className="flex-1 p-4 md:p-6 bg-muted/30">{children}</main>
+    <div className="flex h-screen bg-gray-50">
+      <ClientSidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <DashboardHeader
+          title="Dashboard do Cliente"
+          subtitle="Gerencie seus agendamentos e serviços"
+          userType="client"
+        />
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   )
