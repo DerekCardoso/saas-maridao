@@ -12,13 +12,18 @@ interface User {
 }
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(false) // Mudado para false para não bloquear
+  const [user, setUser] = useState<User | null>({
+    id: "demo-user",
+    name: "Usuário Demo",
+    email: "demo@exemplo.com",
+    userType: "client",
+  })
+  const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const toast = useToastContext()
 
   useEffect(() => {
-    // Simular usuário logado para permitir acesso direto
+    // Simular usuário sempre logado
     const mockUser = {
       id: "demo-user",
       name: "Usuário Demo",
@@ -26,17 +31,16 @@ export function useAuth() {
       userType: "client" as const,
     }
     setUser(mockUser)
-    setIsLoading(false)
+    localStorage.setItem("token", "demo-token")
+    localStorage.setItem("user", JSON.stringify(mockUser))
   }, [])
 
   const login = async (email: string, password: string) => {
     setIsLoading(true)
 
     try {
-      // Simulando uma chamada de API com um atraso
       await new Promise((resolve) => setTimeout(resolve, 1000))
 
-      // Verificar credenciais com os usuários mockados
       const mockUsers = [
         {
           id: "client-1",
@@ -64,21 +68,19 @@ export function useAuth() {
         },
       ]
 
-      const user = mockUsers.find((user) => user.email === email && user.password === password)
+      const foundUser = mockUsers.find((user) => user.email === email && user.password === password)
 
-      if (!user) {
+      if (!foundUser) {
         throw new Error("Email ou senha incorretos")
       }
 
-      // Salvar o token no localStorage (simulado)
       localStorage.setItem("token", "mock-jwt-token")
 
-      // Salvar informações do usuário
       const userData = {
-        id: user.id,
-        name: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        userType: user.userType,
+        id: foundUser.id,
+        name: `${foundUser.firstName} ${foundUser.lastName}`,
+        email: foundUser.email,
+        userType: foundUser.userType,
       }
 
       localStorage.setItem("user", JSON.stringify(userData))
@@ -89,8 +91,7 @@ export function useAuth() {
         description: "Você foi autenticado com sucesso.",
       })
 
-      // Redirecionar com base no tipo de usuário
-      router.push(`/dashboard/${user.userType}`)
+      router.push(`/dashboard/${foundUser.userType}`)
 
       return userData
     } catch (error) {
@@ -118,7 +119,7 @@ export function useAuth() {
   return {
     user,
     isLoading,
-    isAuthenticated: true, // Sempre autenticado para permitir acesso direto
+    isAuthenticated: true, // Sempre autenticado
     login,
     logout,
   }
