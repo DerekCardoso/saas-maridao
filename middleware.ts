@@ -2,11 +2,10 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export function middleware(request: NextRequest) {
-  // Middleware completamente desabilitado - permitir acesso a todas as rotas
+  // Desabilitar completamente o middleware para permitir acesso direto
   return NextResponse.next()
 }
 
 export const config = {
-  // Remover matcher para não interceptar nenhuma rota
-  matcher: [],
+  matcher: [], // Não interceptar nenhuma rota
 }
