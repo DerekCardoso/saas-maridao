@@ -1,93 +1,104 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Calendar, Clock, Home, MessageSquare, Search, Settings, Star } from "lucide-react"
+import {
+  Home,
+  Calendar,
+  Users,
+  MessageSquare,
+  Star,
+  Settings,
+  User,
+  History,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+
+const navigation = [
+  { name: "Dashboard", href: "/dashboard/client", icon: Home },
+  { name: "Agendamentos", href: "/dashboard/client/appointments", icon: Calendar, badge: "3" },
+  { name: "Profissionais", href: "/dashboard/client/providers", icon: Users },
+  { name: "Mensagens", href: "/dashboard/client/messages", icon: MessageSquare, badge: "2" },
+  { name: "Avaliações", href: "/dashboard/client/reviews", icon: Star },
+  { name: "Histórico", href: "/dashboard/client/history", icon: History },
+  { name: "Perfil", href: "/dashboard/client/profile", icon: User },
+  { name: "Configurações", href: "/dashboard/client/settings", icon: Settings },
+]
 
 export function ClientSidebar() {
+  const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
 
   return (
-    <div className="flex h-full flex-col border-r bg-muted/40">
-      <div className="flex h-14 items-center border-b px-4">
-        <Link href="/dashboard/client" className="flex items-center gap-2 font-semibold">
-          <span className="text-primary">Maridão</span>
-          <span className="text-muted-foreground">Cliente</span>
-        </Link>
+    <div
+      className={cn(
+        "bg-white border-r border-gray-200 flex flex-col transition-all duration-300",
+        collapsed ? "w-16" : "w-64",
+      )}
+    >
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          {!collapsed && (
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Maridão</h2>
+              <p className="text-sm text-gray-500">Cliente</p>
+            </div>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => setCollapsed(!collapsed)} className="h-8 w-8 p-0">
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
-      <div className="flex-1 overflow-auto py-2">
-        <nav className="grid items-start px-2 text-sm font-medium">
-          <Link
-            href="/dashboard/client"
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-              pathname === "/dashboard/client" && "bg-muted text-foreground",
-            )}
-          >
-            <Home className="h-4 w-4" />
-            Início
-          </Link>
-          <Link
-            href="/dashboard/client/appointments"
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-              pathname === "/dashboard/client/appointments" && "bg-muted text-foreground",
-            )}
-          >
-            <Calendar className="h-4 w-4" />
-            Agendamentos
-          </Link>
-          <Link
-            href="/dashboard/client/history"
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-              pathname === "/dashboard/client/history" && "bg-muted text-foreground",
-            )}
-          >
-            <Clock className="h-4 w-4" />
-            Histórico
-          </Link>
-          <Link
-            href="/dashboard/client/messages"
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-              pathname.startsWith("/dashboard/client/messages") && "bg-muted text-foreground",
-            )}
-          >
-            <MessageSquare className="h-4 w-4" />
-            Mensagens
-          </Link>
-          <Link
-            href="/dashboard/client/reviews"
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-              pathname === "/dashboard/client/reviews" && "bg-muted text-foreground",
-            )}
-          >
-            <Star className="h-4 w-4" />
-            Avaliações
-          </Link>
-          <Link
-            href="/search"
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-            )}
-          >
-            <Search className="h-4 w-4" />
-            Buscar Serviços
-          </Link>
-        </nav>
-      </div>
-      <div className="mt-auto p-4">
-        <Button asChild variant="outline" className="w-full justify-start">
-          <Link href="/dashboard/client/settings">
-            <Settings className="mr-2 h-4 w-4" />
-            Configurações
-          </Link>
-        </Button>
-      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 p-4 space-y-2">
+        {navigation.map((item) => {
+          const isActive = pathname === item.href
+          return (
+            <Link key={item.name} href={item.href}>
+              <div
+                className={cn(
+                  "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-blue-50 text-blue-700 border border-blue-200"
+                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
+                )}
+              >
+                <item.icon className="h-5 w-5 flex-shrink-0" />
+                {!collapsed && (
+                  <>
+                    <span className="flex-1">{item.name}</span>
+                    {item.badge && (
+                      <Badge variant="secondary" className="ml-auto">
+                        {item.badge}
+                      </Badge>
+                    )}
+                  </>
+                )}
+              </div>
+            </Link>
+          )
+        })}
+      </nav>
+
+      {/* Footer */}
+      {!collapsed && (
+        <div className="p-4 border-t border-gray-200">
+          <div className="bg-blue-50 rounded-lg p-3">
+            <h3 className="text-sm font-medium text-blue-900">Plano Premium</h3>
+            <p className="text-xs text-blue-700 mt-1">Acesse recursos exclusivos e tenha prioridade nos agendamentos</p>
+            <Button size="sm" className="w-full mt-2">
+              Fazer Upgrade
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
