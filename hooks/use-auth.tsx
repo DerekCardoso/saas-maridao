@@ -1,126 +1,88 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useToastContext } from "@/contexts/toast-context"
+import type React from "react"
+
+import { createContext, useContext, useEffect, useState } from "react"
 
 interface User {
   id: string
   name: string
   email: string
-  userType: "client" | "provider" | "admin"
+  type: "client" | "provider" | "admin"
 }
 
-export function useAuth() {
+interface AuthContextType {
+  user: User | null
+  isAuthenticated: boolean
+  isLoading: boolean
+  login: (email: string, password: string) => Promise<void>
+  logout: () => void
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>({
-    id: "demo-user",
-    name: "Usuário Demo",
-    email: "demo@exemplo.com",
-    userType: "client",
+    id: "1",
+    name: "João Silva",
+    email: "joao@example.com",
+    type: "client",
   })
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
-  const toast = useToastContext()
 
   useEffect(() => {
-    // Simular usuário sempre logado
-    const mockUser = {
-      id: "demo-user",
-      name: "Usuário Demo",
-      email: "demo@exemplo.com",
-      userType: "client" as const,
+    // Simular usuário logado automaticamente
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", "mock-token")
+      localStorage.setItem("userType", "client")
     }
-    setUser(mockUser)
-    localStorage.setItem("token", "demo-token")
-    localStorage.setItem("user", JSON.stringify(mockUser))
   }, [])
 
   const login = async (email: string, password: string) => {
     setIsLoading(true)
-
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      const mockUsers = [
-        {
-          id: "client-1",
-          firstName: "João",
-          lastName: "Silva",
-          email: "cliente@exemplo.com",
-          password: "senha123",
-          userType: "client",
-        },
-        {
-          id: "provider-1",
-          firstName: "Carlos",
-          lastName: "Oliveira",
-          email: "prestador@exemplo.com",
-          password: "senha123",
-          userType: "provider",
-        },
-        {
-          id: "admin-1",
-          firstName: "Admin",
-          lastName: "Sistema",
-          email: "admin@exemplo.com",
-          password: "admin123",
-          userType: "admin",
-        },
-      ]
-
-      const foundUser = mockUsers.find((user) => user.email === email && user.password === password)
-
-      if (!foundUser) {
-        throw new Error("Email ou senha incorretos")
-      }
-
-      localStorage.setItem("token", "mock-jwt-token")
-
-      const userData = {
-        id: foundUser.id,
-        name: `${foundUser.firstName} ${foundUser.lastName}`,
-        email: foundUser.email,
-        userType: foundUser.userType,
-      }
-
-      localStorage.setItem("user", JSON.stringify(userData))
-      setUser(userData)
-
-      toast.success({
-        title: "Login realizado com sucesso",
-        description: "Você foi autenticado com sucesso.",
+    // Simular login
+    setTimeout(() => {
+      setUser({
+        id: "1",
+        name: "João Silva",
+        email: email,
+        type: "client",
       })
-
-      router.push(`/dashboard/${foundUser.userType}`)
-
-      return userData
-    } catch (error) {
-      toast.error({
-        title: "Erro no login",
-        description: error instanceof Error ? error.message : "Email ou senha incorretos. Tente novamente.",
-      })
-      throw error
-    } finally {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("token", "mock-token")
+        localStorage.setItem("userType", "client")
+      }
       setIsLoading(false)
-    }
+    }, 1000)
   }
 
   const logout = () => {
-    localStorage.removeItem("token")
-    localStorage.removeItem("user")
     setUser(null)
-    router.push("/")
-    toast.info({
-      title: "Logout realizado",
-      description: "Você saiu da sua conta com sucesso.",
-    })
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token")
+      localStorage.removeItem("userType")
+    }
   }
 
-  return {
-    user,
-    isLoading,
-    isAuthenticated: true, // Sempre autenticado
-    login,
-    logout,
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        login,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider")
   }
+  return context
 }

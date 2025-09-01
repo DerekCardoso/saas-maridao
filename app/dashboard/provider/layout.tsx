@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { ProviderSidebar } from "@/components/dashboard/provider-sidebar"
 
