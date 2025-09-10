@@ -19,35 +19,47 @@ export function ClientServiceStats() {
     cancelled: 0,
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Buscar todos os agendamentos
+        setIsLoading(true)
+        setError(null)
+
         const response = await fetch("/api/appointments")
-        if (response.ok) {
-          const appointments = await response.json()
 
-          // Calcular estatísticas
-          const now = new Date()
-          const total = appointments.length
-          const completed = appointments.filter((appointment: any) => appointment.status === "completed").length
-          const upcoming = appointments.filter(
-            (appointment: any) =>
-              new Date(appointment.date) > now &&
-              (appointment.status === "confirmed" || appointment.status === "pending"),
-          ).length
-          const cancelled = appointments.filter((appointment: any) => appointment.status === "cancelled").length
-
-          setStats({
-            total,
-            completed,
-            upcoming,
-            cancelled,
-          })
+        if (!response.ok) {
+          throw new Error(`Erro ${response.status}: ${response.statusText}`)
         }
+
+        const contentType = response.headers.get("content-type")
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Resposta não é JSON válido")
+        }
+
+        const appointments = await response.json()
+
+        // Calcular estatísticas
+        const now = new Date()
+        const total = appointments.length
+        const completed = appointments.filter((appointment: any) => appointment.status === "completed").length
+        const upcoming = appointments.filter(
+          (appointment: any) =>
+            new Date(appointment.date) > now &&
+            (appointment.status === "confirmed" || appointment.status === "pending"),
+        ).length
+        const cancelled = appointments.filter((appointment: any) => appointment.status === "cancelled").length
+
+        setStats({
+          total,
+          completed,
+          upcoming,
+          cancelled,
+        })
       } catch (error) {
         console.error("Erro ao buscar estatísticas:", error)
+        setError(error instanceof Error ? error.message : "Erro desconhecido")
       } finally {
         setIsLoading(false)
       }
@@ -57,7 +69,39 @@ export function ClientServiceStats() {
   }, [])
 
   if (isLoading) {
-    return <div>Carregando estatísticas...</div>
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-4 bg-muted animate-pulse rounded" />
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 w-16 bg-muted animate-pulse rounded mb-2" />
+              <div className="h-3 w-full bg-muted animate-pulse rounded" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="md:col-span-2 lg:col-span-4">
+          <CardContent className="pt-6">
+            <div className="text-center text-muted-foreground">
+              <p>Erro ao carregar estatísticas: {error}</p>
+              <button onClick={() => window.location.reload()} className="mt-2 text-primary hover:underline">
+                Tentar novamente
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
