@@ -1,143 +1,207 @@
 "use client"
 
 import { useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Search } from "lucide-react"
-import { ClientReviewCard } from "@/components/dashboard/client-review-card"
+import { Star, Calendar, MoreHorizontal, MessageSquare } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import Link from "next/link"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+
+interface Review {
+  id: string
+  providerName: string
+  providerId: string
+  service: string
+  rating: number
+  comment: string
+  date: string
+  status: "published" | "pending"
+  providerImage: string
+  servicePrice: string
+}
+
+const mockReviews: Review[] = [
+  {
+    id: "1",
+    providerName: "Carlos Oliveira",
+    providerId: "1",
+    service: "Reparo Hidráulico",
+    rating: 5,
+    comment:
+      "Excelente profissional! Chegou no horário, foi muito educado e resolveu o problema rapidamente. Recomendo!",
+    date: "2025-01-10",
+    status: "published",
+    providerImage: "/placeholder.svg?height=40&width=40",
+    servicePrice: "R$ 150,00",
+  },
+  {
+    id: "2",
+    providerName: "Roberto Silva",
+    providerId: "3",
+    service: "Pintura",
+    rating: 4,
+    comment: "Bom trabalho, mas demorou um pouco mais do que o esperado. No geral, ficou bem feito.",
+    date: "2025-01-08",
+    status: "published",
+    providerImage: "/placeholder.svg?height=40&width=40",
+    servicePrice: "R$ 800,00",
+  },
+  {
+    id: "3",
+    providerName: "Maria Santos",
+    providerId: "2",
+    service: "Instalação Elétrica",
+    rating: 0,
+    comment: "",
+    date: "2025-01-15",
+    status: "pending",
+    providerImage: "/placeholder.svg?height=40&width=40",
+    servicePrice: "R$ 200,00",
+  },
+]
+
+const StarRating = ({ rating, size = "sm" }: { rating: number; size?: "sm" | "lg" }) => {
+  const starSize = size === "lg" ? "h-5 w-5" : "h-4 w-4"
+
+  return (
+    <div className="flex space-x-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`${starSize} ${star <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
+        />
+      ))}
+    </div>
+  )
+}
 
 export function ClientReviewsList() {
-  const [searchQuery, setSearchQuery] = useState("")
+  const [reviews] = useState<Review[]>(mockReviews)
 
-  // Dados mockados para avaliações
-  const reviews = {
-    completed: [
-      {
-        id: "1",
-        providerName: "João Silva",
-        providerId: "1",
-        service: "Elétrica",
-        date: "10 de Maio, 2025",
-        rating: 5,
-        comment: "Excelente profissional, muito pontual e trabalho de qualidade.",
-      },
-      {
-        id: "2",
-        providerName: "Carlos Mendes",
-        providerId: "2",
-        service: "Montagem de Móveis",
-        date: "28 de Abril, 2025",
-        rating: 4,
-        comment: "Bom trabalho, apenas um pequeno atraso na chegada.",
-      },
-      {
-        id: "3",
-        providerName: "Roberto Almeida",
-        providerId: "3",
-        service: "Hidráulica",
-        date: "15 de Abril, 2025",
-        rating: 5,
-        comment: "Resolveu o problema rapidamente e com eficiência.",
-      },
-    ],
-    pending: [
-      {
-        id: "4",
-        providerName: "Pedro Santos",
-        providerId: "4",
-        service: "Reparos Gerais",
-        date: "5 de Maio, 2025",
-        appointmentId: "app-123",
-      },
-      {
-        id: "5",
-        providerName: "Marcos Oliveira",
-        providerId: "5",
-        service: "Instalações",
-        date: "2 de Maio, 2025",
-        appointmentId: "app-456",
-      },
-    ],
-  }
+  const publishedReviews = reviews.filter((review) => review.status === "published")
+  const pendingReviews = reviews.filter((review) => review.status === "pending")
 
-  // Filtrar avaliações com base na busca
-  const filteredCompleted = reviews.completed.filter(
-    (review) =>
-      review.providerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      review.service.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      review.comment?.toLowerCase().includes(searchQuery.toLowerCase()),
+  const PublishedReviewCard = ({ review }: { review: Review }) => (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start space-x-4">
+            <Avatar>
+              <AvatarImage src={review.providerImage || "/placeholder.svg"} />
+              <AvatarFallback>
+                {review.providerName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h3 className="font-semibold">{review.providerName}</h3>
+                  <p className="text-sm text-muted-foreground">{review.service}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">{review.servicePrice}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(review.date).toLocaleDateString("pt-BR")}</p>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <StarRating rating={review.rating} />
+              </div>
+
+              <p className="text-sm text-gray-700 mb-3">{review.comment}</p>
+
+              <Badge variant="secondary">Publicada</Badge>
+            </div>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="ghost">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem>Editar Avaliação</DropdownMenuItem>
+              <DropdownMenuItem>Excluir Avaliação</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardContent>
+    </Card>
   )
 
-  const filteredPending = reviews.pending.filter(
-    (review) =>
-      review.providerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      review.service.toLowerCase().includes(searchQuery.toLowerCase()),
+  const PendingReviewCard = ({ review }: { review: Review }) => (
+    <Card className="border-dashed border-2 border-yellow-200 bg-yellow-50">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Avatar>
+              <AvatarImage src={review.providerImage || "/placeholder.svg"} />
+              <AvatarFallback>
+                {review.providerName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h3 className="font-semibold">{review.providerName}</h3>
+              <p className="text-sm text-muted-foreground">{review.service}</p>
+              <div className="flex items-center space-x-2 mt-1">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  {new Date(review.date).toLocaleDateString("pt-BR")}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-medium mb-2">{review.servicePrice}</p>
+            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 mb-3">
+              Pendente
+            </Badge>
+            <div>
+              <Button size="sm">Avaliar Agora</Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 
   return (
-    <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por profissional ou serviço..."
-          className="pl-10"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
+    <Tabs defaultValue="published" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="published">Publicadas ({publishedReviews.length})</TabsTrigger>
+        <TabsTrigger value="pending">Pendentes ({pendingReviews.length})</TabsTrigger>
+      </TabsList>
 
-      <Tabs defaultValue="completed" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="completed">Avaliações Enviadas</TabsTrigger>
-          <TabsTrigger value="pending">Pendentes</TabsTrigger>
-        </TabsList>
+      <TabsContent value="published" className="space-y-4">
+        {publishedReviews.length === 0 ? (
+          <div className="text-center py-12">
+            <Star className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">Nenhuma avaliação publicada ainda</p>
+          </div>
+        ) : (
+          publishedReviews.map((review) => <PublishedReviewCard key={review.id} review={review} />)
+        )}
+      </TabsContent>
 
-        <TabsContent value="completed" className="space-y-4">
-          {filteredCompleted.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Nenhuma avaliação encontrada.</p>
-            </div>
-          ) : (
-            filteredCompleted.map((review) => (
-              <ClientReviewCard
-                key={review.id}
-                id={review.id}
-                providerName={review.providerName}
-                providerId={review.providerId}
-                service={review.service}
-                date={review.date}
-                rating={review.rating}
-                comment={review.comment}
-              />
-            ))
-          )}
-        </TabsContent>
-
-        <TabsContent value="pending" className="space-y-4">
-          {filteredPending.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Nenhuma avaliação pendente encontrada.</p>
-            </div>
-          ) : (
-            filteredPending.map((review) => (
-              <div key={review.id} className="border rounded-lg p-4 shadow-sm">
-                <div className="flex flex-col md:flex-row justify-between gap-4">
-                  <div>
-                    <h3 className="font-medium">{review.providerName}</h3>
-                    <p className="text-sm text-muted-foreground">{review.service}</p>
-                    <p className="text-sm text-muted-foreground">Data: {review.date}</p>
-                  </div>
-                  <Button asChild>
-                    <Link href={`/dashboard/client/appointments/${review.appointmentId}/review`}>Avaliar Serviço</Link>
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
+      <TabsContent value="pending" className="space-y-4">
+        {pendingReviews.length === 0 ? (
+          <div className="text-center py-12">
+            <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">Nenhuma avaliação pendente</p>
+          </div>
+        ) : (
+          pendingReviews.map((review) => <PendingReviewCard key={review.id} review={review} />)
+        )}
+      </TabsContent>
+    </Tabs>
   )
 }

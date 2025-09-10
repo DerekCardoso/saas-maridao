@@ -1,72 +1,134 @@
+"use client"
+
+import { Star, Calendar, MoreHorizontal } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Star, StarHalf } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 interface ClientReviewCardProps {
   id: string
   providerName: string
-  providerId: string
   service: string
-  date: string
   rating: number
-  comment?: string
+  comment: string
+  date: string
+  status: "published" | "pending"
+  providerImage?: string
+  servicePrice: string
+}
+
+const StarRating = ({ rating }: { rating: number }) => {
+  return (
+    <div className="flex space-x-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`h-4 w-4 ${star <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
+        />
+      ))}
+    </div>
+  )
 }
 
 export function ClientReviewCard({
   id,
   providerName,
-  providerId,
   service,
-  date,
   rating,
   comment,
+  date,
+  status,
+  providerImage,
+  servicePrice,
 }: ClientReviewCardProps) {
-  // Função para renderizar as estrelas
-  const renderStars = (rating: number) => {
-    const stars = []
-    const fullStars = Math.floor(rating)
-    const hasHalfStar = rating % 1 !== 0
-
-    // Adicionar estrelas cheias
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(<Star key={`full-${i}`} className="h-4 w-4 fill-primary text-primary" />)
-    }
-
-    // Adicionar meia estrela se necessário
-    if (hasHalfStar) {
-      stars.push(<StarHalf key="half" className="h-4 w-4 text-primary" />)
-    }
-
-    // Adicionar estrelas vazias
-    const emptyStars = 5 - Math.ceil(rating)
-    for (let i = 0; i < emptyStars; i++) {
-      stars.push(<Star key={`empty-${i}`} className="h-4 w-4 text-muted-foreground" />)
-    }
-
-    return stars
+  if (status === "pending") {
+    return (
+      <Card className="border-dashed border-2 border-yellow-200 bg-yellow-50">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Avatar>
+                <AvatarImage src={providerImage || "/placeholder.svg"} />
+                <AvatarFallback>
+                  {providerName
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h3 className="font-semibold">{providerName}</h3>
+                <p className="text-sm text-muted-foreground">{service}</p>
+                <div className="flex items-center space-x-2 mt-1">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">{new Date(date).toLocaleDateString("pt-BR")}</span>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-medium mb-2">{servicePrice}</p>
+              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 mb-3">
+                Pendente
+              </Badge>
+              <div>
+                <Button size="sm">Avaliar Agora</Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
     <Card>
-      <CardContent className="p-4">
-        <div className="space-y-2">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="font-medium">{providerName}</h3>
-              <p className="text-sm text-muted-foreground">{service}</p>
-            </div>
-            <div className="flex items-center">
-              {renderStars(rating)}
-              <span className="ml-2 text-sm font-medium">{rating.toFixed(1)}</span>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start space-x-4">
+            <Avatar>
+              <AvatarImage src={providerImage || "/placeholder.svg"} />
+              <AvatarFallback>
+                {providerName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h3 className="font-semibold">{providerName}</h3>
+                  <p className="text-sm text-muted-foreground">{service}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">{servicePrice}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(date).toLocaleDateString("pt-BR")}</p>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <StarRating rating={rating} />
+              </div>
+
+              <p className="text-sm text-gray-700 mb-3">{comment}</p>
+
+              <Badge variant="secondary">Publicada</Badge>
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground">Data: {date}</p>
-
-          {comment && (
-            <div className="mt-2 pt-2 border-t">
-              <p className="text-sm">{comment}</p>
-            </div>
-          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="ghost">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem>Editar Avaliação</DropdownMenuItem>
+              <DropdownMenuItem>Excluir Avaliação</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardContent>
     </Card>

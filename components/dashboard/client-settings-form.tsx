@@ -1,210 +1,139 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
+import { Save, User, Bell, Shield, CreditCard } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { useToastContext } from "@/contexts/toast-context"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function ClientSettingsForm() {
-  const toast = useToastContext()
   const [isLoading, setIsLoading] = useState(false)
-
-  // Dados mockados do usuário
-  const [userData, setUserData] = useState({
+  const [settings, setSettings] = useState({
+    // Perfil
     name: "João Silva",
-    email: "joao.silva@exemplo.com",
-    phone: "(11) 98765-4321",
+    email: "joao@exemplo.com",
+    phone: "(11) 99999-0000",
     address: "Rua das Flores, 123",
     city: "São Paulo",
     state: "SP",
     zipCode: "01234-567",
+
+    // Notificações
+    emailNotifications: true,
+    smsNotifications: false,
+    pushNotifications: true,
+    marketingEmails: false,
+
+    // Privacidade
+    profileVisible: true,
+    showPhone: true,
+    showEmail: false,
+
+    // Pagamento
+    defaultPaymentMethod: "credit_card",
   })
 
-  // Configurações de notificação
-  const [notifications, setNotifications] = useState({
-    email: true,
-    sms: false,
-    push: true,
-    newServices: true,
-    statusUpdates: true,
-    promotions: false,
-  })
-
-  // Configurações de privacidade
-  const [privacy, setPrivacy] = useState({
-    showProfile: true,
-    showReviews: true,
-    allowContact: true,
-  })
-
-  const handleProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSave = async () => {
     setIsLoading(true)
-
-    try {
-      // Simulando uma chamada de API com um atraso
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      toast.success({
-        title: "Perfil atualizado",
-        description: "Suas informações foram atualizadas com sucesso.",
-      })
-    } catch (error) {
-      toast.error({
-        title: "Erro ao atualizar perfil",
-        description: "Ocorreu um erro ao atualizar suas informações. Tente novamente.",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+    // Simular salvamento
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    setIsLoading(false)
   }
 
-  const handleNotificationsSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-
-    try {
-      // Simulando uma chamada de API com um atraso
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      toast.success({
-        title: "Notificações atualizadas",
-        description: "Suas preferências de notificação foram atualizadas com sucesso.",
-      })
-    } catch (error) {
-      toast.error({
-        title: "Erro ao atualizar notificações",
-        description: "Ocorreu um erro ao atualizar suas preferências. Tente novamente.",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handlePrivacySubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-
-    try {
-      // Simulando uma chamada de API com um atraso
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      toast.success({
-        title: "Privacidade atualizada",
-        description: "Suas configurações de privacidade foram atualizadas com sucesso.",
-      })
-    } catch (error) {
-      toast.error({
-        title: "Erro ao atualizar privacidade",
-        description: "Ocorreu um erro ao atualizar suas configurações. Tente novamente.",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+  const updateSetting = (key: string, value: any) => {
+    setSettings((prev) => ({ ...prev, [key]: value }))
   }
 
   return (
-    <Tabs defaultValue="profile" className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="profile">Perfil</TabsTrigger>
-        <TabsTrigger value="notifications">Notificações</TabsTrigger>
-        <TabsTrigger value="privacy">Privacidade</TabsTrigger>
+    <Tabs defaultValue="profile" className="space-y-6">
+      <TabsList className="grid w-full grid-cols-4">
+        <TabsTrigger value="profile">
+          <User className="h-4 w-4 mr-2" />
+          Perfil
+        </TabsTrigger>
+        <TabsTrigger value="notifications">
+          <Bell className="h-4 w-4 mr-2" />
+          Notificações
+        </TabsTrigger>
+        <TabsTrigger value="privacy">
+          <Shield className="h-4 w-4 mr-2" />
+          Privacidade
+        </TabsTrigger>
+        <TabsTrigger value="payment">
+          <CreditCard className="h-4 w-4 mr-2" />
+          Pagamento
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="profile">
         <Card>
           <CardHeader>
             <CardTitle>Informações do Perfil</CardTitle>
-            <CardDescription>Atualize suas informações pessoais e de contato.</CardDescription>
+            <CardDescription>Atualize suas informações pessoais e de contato</CardDescription>
           </CardHeader>
-          <CardContent>
-            <form id="profile-form" onSubmit={handleProfileSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome Completo</Label>
-                  <Input
-                    id="name"
-                    value={userData.name}
-                    onChange={(e) => setUserData({ ...userData, name: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={userData.email}
-                    onChange={(e) => setUserData({ ...userData, email: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input
-                    id="phone"
-                    value={userData.phone}
-                    onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="address">Endereço</Label>
-                  <Input
-                    id="address"
-                    value={userData.address}
-                    onChange={(e) => setUserData({ ...userData, address: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="city">Cidade</Label>
-                  <Input
-                    id="city"
-                    value={userData.city}
-                    onChange={(e) => setUserData({ ...userData, city: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="state">Estado</Label>
-                  <Input
-                    id="state"
-                    value={userData.state}
-                    onChange={(e) => setUserData({ ...userData, state: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="zipCode">CEP</Label>
-                  <Input
-                    id="zipCode"
-                    value={userData.zipCode}
-                    onChange={(e) => setUserData({ ...userData, zipCode: e.target.value })}
-                    required
-                  />
-                </div>
+          <CardContent className="space-y-6">
+            <div className="flex items-center space-x-4">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src="/placeholder.svg?height=80&width=80" />
+                <AvatarFallback>JS</AvatarFallback>
+              </Avatar>
+              <div>
+                <Button variant="outline">Alterar Foto</Button>
+                <p className="text-sm text-muted-foreground mt-1">JPG, PNG ou GIF. Máximo 2MB.</p>
               </div>
-            </form>
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome Completo</Label>
+                <Input id="name" value={settings.name} onChange={(e) => updateSetting("name", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={settings.email}
+                  onChange={(e) => updateSetting("email", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Telefone</Label>
+                <Input id="phone" value={settings.phone} onChange={(e) => updateSetting("phone", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="zipCode">CEP</Label>
+                <Input
+                  id="zipCode"
+                  value={settings.zipCode}
+                  onChange={(e) => updateSetting("zipCode", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="address">Endereço</Label>
+                <Input
+                  id="address"
+                  value={settings.address}
+                  onChange={(e) => updateSetting("address", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city">Cidade</Label>
+                <Input id="city" value={settings.city} onChange={(e) => updateSetting("city", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="state">Estado</Label>
+                <Input id="state" value={settings.state} onChange={(e) => updateSetting("state", e.target.value)} />
+              </div>
+            </div>
           </CardContent>
-          <CardFooter className="flex justify-end">
-            <Button type="submit" form="profile-form" disabled={isLoading}>
-              {isLoading ? "Salvando..." : "Salvar Alterações"}
-            </Button>
-          </CardFooter>
         </Card>
       </TabsContent>
 
@@ -212,76 +141,53 @@ export function ClientSettingsForm() {
         <Card>
           <CardHeader>
             <CardTitle>Preferências de Notificação</CardTitle>
-            <CardDescription>Escolha como e quando deseja receber notificações.</CardDescription>
+            <CardDescription>Configure como você deseja receber notificações</CardDescription>
           </CardHeader>
-          <CardContent>
-            <form id="notifications-form" onSubmit={handleNotificationsSubmit} className="space-y-4">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Canais de Notificação</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="email-notifications">Email</Label>
-                    <Switch
-                      id="email-notifications"
-                      checked={notifications.email}
-                      onCheckedChange={(checked) => setNotifications({ ...notifications, email: checked })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="sms-notifications">SMS</Label>
-                    <Switch
-                      id="sms-notifications"
-                      checked={notifications.sms}
-                      onCheckedChange={(checked) => setNotifications({ ...notifications, sms: checked })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="push-notifications">Notificações Push</Label>
-                    <Switch
-                      id="push-notifications"
-                      checked={notifications.push}
-                      onCheckedChange={(checked) => setNotifications({ ...notifications, push: checked })}
-                    />
-                  </div>
-                </div>
-
-                <Separator />
-
-                <h3 className="text-lg font-medium">Tipos de Notificação</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="new-services">Novos Serviços Disponíveis</Label>
-                    <Switch
-                      id="new-services"
-                      checked={notifications.newServices}
-                      onCheckedChange={(checked) => setNotifications({ ...notifications, newServices: checked })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="status-updates">Atualizações de Status</Label>
-                    <Switch
-                      id="status-updates"
-                      checked={notifications.statusUpdates}
-                      onCheckedChange={(checked) => setNotifications({ ...notifications, statusUpdates: checked })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="promotions">Promoções e Ofertas</Label>
-                    <Switch
-                      id="promotions"
-                      checked={notifications.promotions}
-                      onCheckedChange={(checked) => setNotifications({ ...notifications, promotions: checked })}
-                    />
-                  </div>
-                </div>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Notificações por Email</Label>
+                <p className="text-sm text-muted-foreground">Receba atualizações sobre agendamentos por email</p>
               </div>
-            </form>
+              <Switch
+                checked={settings.emailNotifications}
+                onCheckedChange={(checked) => updateSetting("emailNotifications", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Notificações por SMS</Label>
+                <p className="text-sm text-muted-foreground">Receba lembretes de agendamentos por SMS</p>
+              </div>
+              <Switch
+                checked={settings.smsNotifications}
+                onCheckedChange={(checked) => updateSetting("smsNotifications", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Notificações Push</Label>
+                <p className="text-sm text-muted-foreground">Receba notificações no navegador</p>
+              </div>
+              <Switch
+                checked={settings.pushNotifications}
+                onCheckedChange={(checked) => updateSetting("pushNotifications", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Emails de Marketing</Label>
+                <p className="text-sm text-muted-foreground">Receba ofertas especiais e novidades</p>
+              </div>
+              <Switch
+                checked={settings.marketingEmails}
+                onCheckedChange={(checked) => updateSetting("marketingEmails", checked)}
+              />
+            </div>
           </CardContent>
-          <CardFooter className="flex justify-end">
-            <Button type="submit" form="notifications-form" disabled={isLoading}>
-              {isLoading ? "Salvando..." : "Salvar Preferências"}
-            </Button>
-          </CardFooter>
         </Card>
       </TabsContent>
 
@@ -289,66 +195,74 @@ export function ClientSettingsForm() {
         <Card>
           <CardHeader>
             <CardTitle>Configurações de Privacidade</CardTitle>
-            <CardDescription>Controle quem pode ver suas informações e como elas são usadas.</CardDescription>
+            <CardDescription>Controle quais informações são visíveis para outros usuários</CardDescription>
           </CardHeader>
-          <CardContent>
-            <form id="privacy-form" onSubmit={handlePrivacySubmit} className="space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="show-profile">Mostrar Perfil Publicamente</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Permitir que prestadores de serviço vejam seu perfil.
-                    </p>
-                  </div>
-                  <Switch
-                    id="show-profile"
-                    checked={privacy.showProfile}
-                    onCheckedChange={(checked) => setPrivacy({ ...privacy, showProfile: checked })}
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="show-reviews">Mostrar Avaliações Publicamente</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Permitir que suas avaliações sejam vistas por outros usuários.
-                    </p>
-                  </div>
-                  <Switch
-                    id="show-reviews"
-                    checked={privacy.showReviews}
-                    onCheckedChange={(checked) => setPrivacy({ ...privacy, showReviews: checked })}
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="allow-contact">Permitir Contato Direto</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Permitir que prestadores de serviço entrem em contato diretamente com você.
-                    </p>
-                  </div>
-                  <Switch
-                    id="allow-contact"
-                    checked={privacy.allowContact}
-                    onCheckedChange={(checked) => setPrivacy({ ...privacy, allowContact: checked })}
-                  />
-                </div>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Perfil Visível</Label>
+                <p className="text-sm text-muted-foreground">Permitir que prestadores vejam seu perfil</p>
               </div>
-            </form>
+              <Switch
+                checked={settings.profileVisible}
+                onCheckedChange={(checked) => updateSetting("profileVisible", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Mostrar Telefone</Label>
+                <p className="text-sm text-muted-foreground">Exibir seu telefone no perfil público</p>
+              </div>
+              <Switch checked={settings.showPhone} onCheckedChange={(checked) => updateSetting("showPhone", checked)} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Mostrar Email</Label>
+                <p className="text-sm text-muted-foreground">Exibir seu email no perfil público</p>
+              </div>
+              <Switch checked={settings.showEmail} onCheckedChange={(checked) => updateSetting("showEmail", checked)} />
+            </div>
           </CardContent>
-          <CardFooter className="flex justify-end">
-            <Button type="submit" form="privacy-form" disabled={isLoading}>
-              {isLoading ? "Salvando..." : "Salvar Configurações"}
-            </Button>
-          </CardFooter>
         </Card>
       </TabsContent>
+
+      <TabsContent value="payment">
+        <Card>
+          <CardHeader>
+            <CardTitle>Métodos de Pagamento</CardTitle>
+            <CardDescription>Gerencie suas formas de pagamento</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <CreditCard className="h-8 w-8 text-blue-600" />
+                  <div>
+                    <p className="font-medium">Cartão de Crédito</p>
+                    <p className="text-sm text-muted-foreground">**** **** **** 1234</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm">
+                  Editar
+                </Button>
+              </div>
+
+              <Button variant="outline" className="w-full bg-transparent">
+                Adicionar Novo Método
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={isLoading}>
+          <Save className="h-4 w-4 mr-2" />
+          {isLoading ? "Salvando..." : "Salvar Alterações"}
+        </Button>
+      </div>
     </Tabs>
   )
 }
