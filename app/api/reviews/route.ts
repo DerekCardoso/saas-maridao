@@ -1,46 +1,54 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 
-// Mock data para demonstração
+// Mock data para avaliações
 const mockReviews = [
   {
     id: "1",
+    clientName: "Ana Paula",
     clientId: "client-1",
-    providerId: "provider-1",
-    appointmentId: "1",
-    providerName: "João Silva",
-    service: "Encanamento",
+    appointmentId: "4",
+    service: "Reparos Gerais",
     rating: 5,
-    comment: "Excelente profissional! Resolveu o problema rapidamente e com qualidade.",
-    date: "2024-01-16T10:00:00Z",
-    status: "published",
+    comment: "Excelente profissional! Muito pontual e caprichoso no trabalho. Recomendo!",
+    date: "2025-05-06T10:00:00Z",
+    response: "Muito obrigado pela avaliação! Foi um prazer atendê-la.",
   },
   {
     id: "2",
-    clientId: "client-1",
-    providerId: "provider-2",
-    appointmentId: "2",
-    providerName: "Maria Santos",
-    service: "Limpeza",
-    rating: 4,
-    comment: "Muito boa! Deixou tudo impecável.",
-    date: "2024-01-21T14:00:00Z",
-    status: "published",
+    clientName: "Fernanda Lima",
+    clientId: "client-5",
+    appointmentId: "5",
+    service: "Instalações",
+    rating: 5,
+    comment: "Instalação perfeita do ar condicionado. Profissional muito competente e educado.",
+    date: "2025-04-29T15:30:00Z",
+    response: null,
   },
   {
     id: "3",
-    clientId: "client-1",
-    providerId: "provider-4",
-    appointmentId: "4",
-    providerName: "Ana Costa",
-    service: "Jardinagem",
-    rating: 0,
-    comment: "",
-    date: null,
-    status: "pending",
+    clientName: "Carlos Santos",
+    clientId: "client-6",
+    appointmentId: "6",
+    service: "Elétrica",
+    rating: 4,
+    comment: "Bom trabalho, mas chegou um pouco atrasado. No geral, recomendo.",
+    date: "2025-04-25T14:20:00Z",
+    response: "Peço desculpas pelo atraso. Obrigado pelo feedback!",
+  },
+  {
+    id: "4",
+    clientName: "Maria Oliveira",
+    clientId: "client-7",
+    appointmentId: "7",
+    service: "Montagem de Móveis",
+    rating: 5,
+    comment: "Montou todos os móveis com perfeição. Muito cuidadoso e organizado.",
+    date: "2025-04-20T16:45:00Z",
+    response: null,
   },
 ]
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Simular delay de rede
     await new Promise((resolve) => setTimeout(resolve, 300))
@@ -52,22 +60,20 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // Simular criação de avaliação
-    const newReview = {
-      id: Date.now().toString(),
-      clientId: "client-1",
-      ...body,
-      date: new Date().toISOString(),
-      status: "published",
+    // Simular resposta a avaliação
+    const updatedReview = {
+      id: body.reviewId,
+      response: body.response,
+      responseDate: new Date().toISOString(),
     }
 
-    return NextResponse.json(newReview, { status: 201 })
+    return NextResponse.json(updatedReview, { status: 201 })
   } catch (error) {
-    console.error("Erro ao criar avaliação:", error)
+    console.error("Erro ao responder avaliação:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
