@@ -1,30 +1,37 @@
-# Maridão web platform
+# Maridao
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+Maridao connects clients to local home-service providers without intermediating service payments. Clients search, compare reputation, contact providers through WhatsApp, schedule jobs and leave reviews. Providers manage profile, availability, appointments and a Stripe Premium subscription.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/derekcardosos-projects/v0-maridao-web-platform)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/Re7xYiFp2Y7)
+## Stack
 
-## Overview
+- Monorepo: pnpm workspaces
+- Web: React, Vite, TypeScript, React Router, TanStack Query, Tailwind
+- API: NestJS, TypeScript, Drizzle, Supabase Auth/Postgres/Storage
+- Payments: Stripe Checkout, Customer Portal and webhooks
+- Integrations: Mapbox, Resend, Sentry
+- Deploy: Vercel for web, Railway for API
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+## Apps
 
-## Deployment
+- `apps/web`: customer, provider and admin SPA.
+- `apps/api`: REST API under `/v1`.
+- `packages/shared`: public enums, schemas, errors, pagination and shared helpers.
+- `legacy/next-app`: previous Next.js app kept for reference during migration.
 
-Your project is live at:
+## Local setup
 
-**[https://vercel.com/derekcardosos-projects/v0-maridao-web-platform](https://vercel.com/derekcardosos-projects/v0-maridao-web-platform)**
+1. Install dependencies: `pnpm install`.
+2. Copy `.env.example` into app-specific environment files.
+3. Configure Supabase, Stripe, Mapbox and Resend keys.
+4. Run migrations: `pnpm db:migrate`.
+5. Seed base data: `pnpm db:seed`.
+6. Start both apps: `pnpm dev`.
 
-## Build your app
+## Quality gates
 
-Continue building your app on:
+- `pnpm lint`
+- `pnpm typecheck`
+- `pnpm test`
+- `pnpm test:e2e`
 
-**[https://v0.dev/chat/projects/Re7xYiFp2Y7](https://v0.dev/chat/projects/Re7xYiFp2Y7)**
-
-## How It Works
-
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+Deployment and operational notes live under `docs/`.
